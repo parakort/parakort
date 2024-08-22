@@ -191,6 +191,25 @@ pingUrl();
       res.send(process.env.APP_NAME)
   })
 
+  
+  // Database update endpoint
+  // Updates the provided 'field' with the given 'newValue'.
+  router.post('/updateField', async (req, res) => {
+    const { uid, field, newValue } = req.body;
+
+    try {
+        // Update the document
+        await User.findByIdAndUpdate(uid, { $set: { [field]: newValue } }, {new: true})
+
+        // Successful update
+        res.status(200).send();
+
+    } catch (error) {
+        console.error("Error persisting database:", error);
+        res.status(500).send();
+    }
+});
+
 
   async function isSubscribed(user_id) {
     const maxRetries = 3; // Maximum number of retry attempts
@@ -359,7 +378,7 @@ pingUrl();
 
   router.post('/user', (req, response) => {
     // Define fields to exclude from the user object (for security)
-    const excludedFields = [];
+    const excludedFields = ["password"];
 
     // Utility function to remove specified fields from user obj
     const excludeFields = (obj) => {

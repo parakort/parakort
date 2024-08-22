@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const uniqueValidator = require('mongoose-unique-validator');
+const { Schema } = mongoose;
 
 const UserSchema = new mongoose.Schema({
     
@@ -15,6 +16,18 @@ password: {
     type: String,
     required: [true, "Please provide a password!"],
     unique: false,
+},
+
+// Dynamic fields
+location: {
+    lat: { type: Number },
+    lon: { type: Number }
+},
+
+// Additional fields
+filters: {
+    type: Map,
+    of: Schema.Types.Mixed
 },
 
 
@@ -52,32 +65,13 @@ email_confirmed: {
     default: false
 },
 
-receipt: {
-    type: String,
-    default: ''
-},
 
 tokens: {
     // Defaults to 0. Trial tokens granted once we confirm that registering device id is not in the device pool
     type: Number,
     default: 0
 },
-requests: {
-    type: String,
-    default: ''
-},
 
-history: {
-    breakfast: [],
-    lunch: [],
-    dinner: [],
-},
-
-meals: {
-    breakfast: [],
-    lunch: [],
-    dinner: [],
-},
 
 devices: {
     type: Array
