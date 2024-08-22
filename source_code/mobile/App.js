@@ -4,16 +4,17 @@ import Navigation from './Screens/Navigation';
 import Login from './Components/Login';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import styles from './styles.js'
 
 import { getLocation } from './utils/location.js';
+import config from "./app.json"
 
 
 
 import Purchases from 'react-native-purchases';
 
-const BASE_URL = "http://10.0.21.21:3001"//"http://localhost:3001"
+const BASE_URL = config.app.api
 
 // Demo video url
 const DEMO_URL = "https://youtu.be/udKK51jYs7M"
@@ -37,12 +38,13 @@ export default function App() {
 
   // user object we get from logging in
   const [user, setUser] = useState()
-  
 
-  const [init, setInit] = useState(false)
-  // Automatically check to see if we are logged in
-  const [preInit, setPreInit] = useState(true)
-  const [loading, setLoading] = useState(true)
+  // useRef prevents a redundant persistance 
+  const [filters, setFilters] = useState(null)
+  const prevFilters = useRef(null)
+  
+  // Check if we are logged in
+  const [init, setInit] = useState(true)
 
   // is this the help modal?
   const [isModalVisible, setModalVisible] = useState(false)
@@ -50,6 +52,58 @@ export default function App() {
 
   // Help modal text: Contact message
   const [textInputValue, setTextInputValue] = useState('');
+
+  /**
+   * @FILTERS
+   * Function to update a specific filter
+   */
+  const updateFilter = (filterType, newValue) => {
+    setFilters(prevFilters => ({
+        ...prevFilters,
+        [filterType]: newValue
+    }));
+};
+
+
+  /**
+   * Passes the update request to the server to persist the data
+   * @param {String} field 
+   * @param {*} newValue 
+   */
+  function updateField(field, newValue) 
+  {
+    axios.post(`${BASE_URL}/updateField`, {uid: user?._id, field: field, newValue: newValue})
+  }
+
+  
+  // The following side effects persist data to mongo
+  // Data is automatically persisted when updating a value with state.
+  // For filters, we have a updateFilter function to update only one filter at a time.
+  // Should filters be in AsyncStorage? Not right now, because what if we want to support users who use multiple devices?
+  useEffect(() => {
+    
+    // location.timestamp can be used for 'last seen'
+    // this allows other users to get the latest location of this user
+    if (location) 
+    {
+      updateField("location", location)
+    }
+    
+  }, [location])
+
+  
+  useEffect(() => {
+    
+    // Ignores the first update (does not persist), because that is the one coming from the database (would be redundant).
+    if (filters && filters !== prevFilters.current) {
+      updateField("filters", filters)
+      prevFilters.current = filters;
+    } 
+    
+  }, [filters])
+
+
+
 
   // Help modal
   const handleChangeText = (text) => {
@@ -67,54 +121,11 @@ export default function App() {
       alert("Your message was recieved!")
     })
     .catch(() => {
-      alert("We're sorry, there was an error.\nPlease email MealGeniusApp@gmail.com")
+      alert("We're sorry, there was an error.\nPlease email app.TheClubhouse@gmail.com")
     })
     setTextInputValue('');
   };
 
-  // When we authenticate, initialize.
-  useEffect(() =>
-  {
-    if (authenticated)
-    {
-      setInit(true)
-    }
-  }, [authenticated])
-
-  // when location updates, change it in the database too.
-  // this allows other users to get the latest location of this user
-  useEffect(() => {
-    if (location)
-    {
-      // ...
-      console.log("Got user location: ")
-      console.log(location.coords.longitude, location.coords.latitude)
-      //location.timestamp
-    }
-
-  }, [location])
-  
-
-  useEffect( () =>
-    {
-      AsyncStorage.getItem('token').then(value => {
-        // If we are logged in, set auth to true to show the app and init
-        
-        if (value)
-        {
-          logIn(value)
-          // Hides the splash screen after attempting to log in.
-        }
-        else
-        {
-          // We are not log in, hide the splash screen (to present the login page)
-          setShowSplash(false)
-        }
-  
-        setPreInit(false)
-      })
-  
-    }, [preInit])
 
 
 
@@ -135,7 +146,7 @@ export default function App() {
 
         } else {
           // We have their location!
-          setLocation(location)
+          setLocation({lat: location.coords.latitude, lon: location.coords.latitude})
         
         }
 
@@ -244,6 +255,11 @@ export default function App() {
       {
         logIn(value)
       }
+      else
+      {
+        // We are not log in, hide the splash screen (to present the login page)
+        setShowSplash(false)
+      }
     })
     
 
@@ -275,10 +291,15 @@ function logIn(token)
     setTokens(res.data.tokens)
     setSubscribed(res.data.user.subscribed)
 
-    // bundle all above into single object
-    setUser(res.data.user)
+    // user will be used for the immutable fields such as name, email, id.
+    // if we bundle all of it into user, like bundling filters too, we can't isolate state changes.
+    const { _id, email } = res.data.user;
+    setUser({ _id, email });
+
+    setFilters(res.data.user.filters)
 
     // They logged in: If location is null, it is a new account, so get their location
+    // actually, don't we get their location upon EVERY login? yeah ...
     if (!location)
     {
       // Get their current location
@@ -289,7 +310,8 @@ function logIn(token)
 
       } else {
         // We have their location!
-        setLocation(location)
+        setLocation({lat: location.coords.latitude, lon: location.coords.latitude})
+        
       
       }
     }

@@ -5,7 +5,8 @@
       "red": "#F9063C",
       "blue": "#849bff",
       "creme": "#FFFFF1"
-    }
+    },
+    "api": "http://172.20.10.10:3001"
   },
   "expo": {
     "name": "The Clubhouse",
