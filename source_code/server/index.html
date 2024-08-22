@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sports Management</title>
+    <script>
+        async function addSport() {
+            const name = prompt("Enter the name of the sport:");
+            const image = prompt("Enter the image URL for the sport:");
+
+            if (name && image) {
+                const response = await fetch('/addSport', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, image })
+                });
+                const result = await response.json();
+                alert(result.message);
+            }
+        }
+
+        async function deleteSport() {
+            const id = prompt("Enter the ID of the sport to delete:");
+
+            if (id) {
+                const response = await fetch(`/deleteSport/${id}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+                alert(result.message);
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Manage Sports</h1>
+    <button onclick="addSport()">Add Sport</button>
+    <button onclick="deleteSport()">Delete Sport</button>
+</body>
+</html>

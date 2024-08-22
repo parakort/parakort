@@ -136,6 +136,10 @@ export default function App() {
       // App opened. User is not dormat.
       // If we need this depends on if we reach /user when opening the app, even if it's in the background will it run /user again?
       // probably not... 
+
+      // we are updating user location whenever they open the app, not just when the app restarts
+      // is this overkill?
+      // @TODO what if we logout the user when the app is closed?
       if (user?._id)
       {
         // Get their current location
@@ -146,7 +150,7 @@ export default function App() {
 
         } else {
           // We have their location!
-          setLocation({lat: location.coords.latitude, lon: location.coords.latitude})
+          setLocation({lat: location.coords.latitude, lon: location.coords.longitude})
         
         }
 
@@ -300,8 +304,7 @@ function logIn(token)
 
     // They logged in: If location is null, it is a new account, so get their location
     // actually, don't we get their location upon EVERY login? yeah ...
-    if (!location)
-    {
+   
       // Get their current location
       const { location, error } = await getLocation();
       if (error) {
@@ -314,8 +317,8 @@ function logIn(token)
         
       
       }
-    }
     
+  
     
     // Allow purchasing subscriptions
     // this can happen as soon as we get the user id
@@ -339,6 +342,9 @@ function logIn(token)
   })
   .catch((e) => {
     console.log('Error in logIn app.js: ', e)
+    //console.log(e.response.status)
+    // need to show login screen again
+    setShowSplash(false)
     
   })
 }

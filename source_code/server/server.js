@@ -24,5 +24,5 @@ app.use('/', api);
 // Start the server on port 3000
 const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {
-  console.log(`Template Server is running on port ${PORT}`);
+  console.log(`${process.env.APP_NAME} is running on port ${PORT}`);
 });

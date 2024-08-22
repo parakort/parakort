@@ -2,6 +2,27 @@ const mongoose = require("mongoose");
 const uniqueValidator = require('mongoose-unique-validator');
 const { Schema } = mongoose;
 
+
+// Define the schema for a sport's level and match_level
+const userSportSchema = new mongoose.Schema({
+    sportId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sport' }, // Reference to the sports collection
+    my_level: { type: Number, min: 0, max: 3, default: 0 },
+    match_level: [{ type: Number, enum: [1, 2, 3], default: [] }]
+  });
+
+// Define the schema for filters
+const filterSchema = new Schema({
+    male: { type: Boolean, required: true, default: true },
+    female: { type: Boolean, required: true, default: true },
+    age: {
+        min: { type: Number, default: 0 },
+        max: { type: Number, default: 100 }
+    },
+    radius: { type: Number, required: true, default: 10 },
+    sports: [userSportSchema]
+});
+
+
 const UserSchema = new mongoose.Schema({
     
 email: {
@@ -24,11 +45,9 @@ location: {
     lon: { type: Number }
 },
 
-// Additional fields
 filters: {
-    type: Map,
-    of: Schema.Types.Mixed
-},
+    type: filterSchema
+  },
 
 
 renewal_date: {
