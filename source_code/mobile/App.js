@@ -6,6 +6,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState, useEffect } from 'react'
 import styles from './styles.js'
+import config from './app.json'
 
 import { getLocation } from './utils/location.js';
 
@@ -13,7 +14,7 @@ import { getLocation } from './utils/location.js';
 
 import Purchases from 'react-native-purchases';
 
-const BASE_URL = "http://10.0.21.21:3001"//"http://localhost:3001"
+const BASE_URL = config.app.server
 
 // Demo video url
 const DEMO_URL = "https://youtu.be/udKK51jYs7M"

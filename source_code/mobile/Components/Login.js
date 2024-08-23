@@ -46,6 +46,8 @@ export default function LoginScreen(props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showCode, setShowCode] = useState(false)
+  const [loginInProgress, setLoginInProgress] = useState(false)
+
 
   const [forgotPassword, setForgotPassword] = useState(false)
   const [canResetPass, setCanResetPass] = useState(false)
@@ -91,6 +93,56 @@ export default function LoginScreen(props) {
     {
       setEmailv1(email)
     }
+  }
+
+  const onLogRegPress = () => {
+
+    // disable the button
+    setLoginInProgress(true)
+
+    setStatus('Checking credentials...')
+
+    axios.post(`${props.api}/log-or-reg`, {email: email, password: password, device: deviceId})
+    .then((res) =>
+    {
+      // Credentials valid. And device is permitted
+      // This section runs iff they do not need to confirm their device when logging in. Right now, this is NEVER!
+      // Instead the below code in the onFulfill function will run when confirming code.
+      setStatus('Logging in...')
+      props.login(res.data.token)
+      // the above should also provide any metadata such as preferences, instead of the /user endpoint
+    })
+    .catch((e) => {
+      setLoginInProgress(false)
+
+      setStatus('Error, please try again')
+      if (e.response.status === 400)
+      {
+        // Incorrect password
+        setStatus('Incorrect password!')
+      }
+      else if (e.response.status === 422)
+      {
+        // New device, code sent
+        setStatus('Please enter the code sent to your email.')
+        setUserId(e.response.data.token)
+
+        // Load UI for code entry
+        setShowCode(true)
+
+      }
+
+      // This should be impossible, because we just register if user was not found.
+      else if (e.response.status === 404)
+      {
+        setStatus('User not found!')
+      }
+      else 
+      {
+        setStatus('Error, please try again')
+      }
+    })
+    
   }
 
   const onLoginPress = () => {
@@ -375,7 +427,15 @@ export default function LoginScreen(props) {
               secureTextEntry={true}
               onChangeText={(text) => {setPassword(text); setStatus('')}}
             />
+
             <Button
+              buttonStyle={styles.loginButton}
+              onPress={() => onLogRegPress()}
+              title="Login / Sign-up"
+              disabled={loginInProgress || !(isEmail.test(email) && password)}
+            />
+
+            {/* <Button
               buttonStyle={styles.loginButton}
               onPress={() => onLoginPress()}
               title="Login"
@@ -387,7 +447,7 @@ export default function LoginScreen(props) {
               onPress={() => onRegisterPress()}
               title="Register"
               disabled={!(isEmail.test(email) && password)}
-            />
+            /> */}
 
 
 
@@ -413,7 +473,7 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
   loginScreenContainer: {
-    flex: 1,
+    flex: 1
   },
   logoText: {
     fontSize: Platform.OS === 'ios' && Platform.isPad ? 60 : 40,

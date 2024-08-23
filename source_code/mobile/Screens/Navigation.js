@@ -67,7 +67,7 @@ const Navigation = (props) => {
             <Page2 />}/>
 
           <Tab.Screen name="Profile" children={()=>
-            <Profile logout = {props.logout}/>}/>
+            <Profile logout = {props.logout} deleteAccount = {props.deleteAccount}/>}/>
        
         </Tab.Navigator>
     </NavigationContainer>

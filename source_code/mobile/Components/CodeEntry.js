@@ -66,7 +66,8 @@ const CodeEntry = ({ fulfilled, status, back }) => {
     },
     loginScreenContainer: {
       flex: 1,
-      width: "100%"
+      width: "100%",
+      top: -100
     },
     logoText: {
       fontSize: Platform.OS === 'ios' && Platform.isPad ? 65 : 40,
