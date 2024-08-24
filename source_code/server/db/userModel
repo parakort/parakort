@@ -1,5 +1,27 @@
 const mongoose = require("mongoose");
 const uniqueValidator = require('mongoose-unique-validator');
+const { Schema } = mongoose;
+
+
+// Define the schema for a sport's level and match_level
+const userSportSchema = new mongoose.Schema({
+    sportId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sport' }, // Reference to the sports collection
+    my_level: { type: Number, min: 0, max: 3, default: 0 },
+    match_level: [{ type: Number, enum: [1, 2, 3], default: [] }]
+  });
+
+// Define the schema for filters
+const filterSchema = new Schema({
+    male: { type: Boolean, required: true, default: true },
+    female: { type: Boolean, required: true, default: true },
+    age: {
+        min: { type: Number, default: 0 },
+        max: { type: Number, default: 100 }
+    },
+    radius: { type: Number, required: true, default: 10 },
+    sports: [userSportSchema]
+});
+
 
 const UserSchema = new mongoose.Schema({
     
@@ -16,6 +38,16 @@ password: {
     required: [true, "Please provide a password!"],
     unique: false,
 },
+
+// Dynamic fields
+location: {
+    lat: { type: Number },
+    lon: { type: Number }
+},
+
+filters: {
+    type: filterSchema
+  },
 
 
 renewal_date: {
@@ -52,32 +84,13 @@ email_confirmed: {
     default: false
 },
 
-receipt: {
-    type: String,
-    default: ''
-},
 
 tokens: {
     // Defaults to 0. Trial tokens granted once we confirm that registering device id is not in the device pool
     type: Number,
     default: 0
 },
-requests: {
-    type: String,
-    default: ''
-},
 
-history: {
-    breakfast: [],
-    lunch: [],
-    dinner: [],
-},
-
-meals: {
-    breakfast: [],
-    lunch: [],
-    dinner: [],
-},
 
 devices: {
     type: Array

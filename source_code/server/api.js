@@ -3,16 +3,31 @@
   const User = require("./db/userModel");
   const Trial = require("./db/trialModel");
   const Options = require("./db/optionsModel");
+  const Sport = require("./db/sportModel");
+  const path = require('path');
   const cron = require('node-cron');
   var router = express.Router();
   require('dotenv').config();
   var axios = require('axios')
   const bcrypt = require("bcrypt");
   const nodemailer = require('nodemailer');
+  let userSports 
 
-  // DB connection
+  // DB connection: connect then load sports
   dbConnect()
+  .then(async () => {
+    const sports = await Sport.find({});
 
+    userSports = sports.map(sport => ({
+      sportId: sport._id,
+      my_level: 0, // Default level or other initialization
+      match_level: []
+    }));
+
+    console.log("Loaded sports")
+  })
+  
+  
   
 
 
@@ -186,10 +201,29 @@ pingUrl();
 
   // Endpoints
 
+// Temporary management portal while testing.
+  router.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
-  router.get('/', (req,res) => {
-      res.send(process.env.APP_NAME)
-  })
+  
+  // Database update endpoint
+  // Updates the provided 'field' with the given 'newValue'.
+  router.post('/updateField', async (req, res) => {
+    const { uid, field, newValue } = req.body;
+
+    try {
+        // Update the document
+        await User.findByIdAndUpdate(uid, { $set: { [field]: newValue } }, {new: true})
+
+        // Successful update
+        res.status(200).send();
+
+    } catch (error) {
+        console.error("Error persisting database:", error);
+        res.status(500).send();
+    }
+});
 
 
   async function isSubscribed(user_id) {
@@ -253,6 +287,61 @@ pingUrl();
   router.get('/ping', async(req, res) => {
     res.json(Date.now())
   })
+
+  // Endpoint to add a sport
+router.post('/addSport', async (req, res) => {
+  const { name, image } = req.body;
+
+  try {
+
+    // Create new sport
+    const newSport = new Sport({ name, image });
+
+    // Save sport to the database
+    await newSport.save();
+
+    // Update all users to include the new sport
+    await User.updateMany(
+      {}, 
+      { $push: { 'filters.sports': { sportId: newSport._id, my_level: 0, match_level: [] } } }
+    );
+
+    res.status(201).send({ message: 'Sport added successfully', sport: newSport });
+  } catch (error) {
+    console.error('Error adding sport:', error);
+    res.status(500).send({ message: 'Error adding sport' });
+  }
+});
+
+// delete sport
+router.delete('/deleteSport/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Validate input
+    if (!id) {
+      return res.status(400).send({ message: 'Sport ID is required' });
+    }
+
+    // Find and delete the sport
+    const deletedSport = await Sport.findByIdAndDelete(id);
+
+    if (!deletedSport) {
+      return res.status(404).send({ message: 'Sport not found' });
+    }
+
+    // Remove the sport from all users
+    await User.updateMany(
+      {},
+      { $pull: { 'filters.sports': { sportId: id } } }
+    );
+
+    res.status(200).send({ message: 'Sport deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting sport:', error);
+    res.status(500).send({ message: 'Error deleting sport' });
+  }
+});
 
    // A user just subscribed
   // Verify their reciept => grant tokens
@@ -333,78 +422,48 @@ pingUrl();
       })
   })
   
-  // Update special requests
-  // Used to update the database value for a user given id
-  router.post('/updateRequests', (req,res) => {
-    User.findByIdAndUpdate(
-      
-      req.body.user_id,
-      {
-        $set: { requests: req.body.requests }
-      }, {new: true}).then((user) => {
-        console.log(user.email, "updated preferences")
-        res.send('Success')
-      })
-      .catch((e) => {
-        console.log(e)
-        res.status(500).send(e)
-      })
-    
-  })
 
   // Load the user when they log in
   // Can we move this to the return of /login? this is unclear!
   // the reason we don't, is because we only need to /login once which gets the id (and will also return the user object), 
   // and /user is used once we have the id to get the user object from id (where /login gets it from email / pass)
 
-  router.post('/user', (req, response) => {
+  router.post('/user', async (req, res) => {
     // Define fields to exclude from the user object (for security)
-    const excludedFields = [];
-
+    const excludedFields = ["password"];
+  
     // Utility function to remove specified fields from user obj
     const excludeFields = (obj) => {
       const newObj = { ...obj };
       excludedFields.forEach(field => delete newObj[field]);
       return newObj;
     };
-
-    // Get the user
-    User.findByIdAndUpdate(
-      req.body.user_id,
-      {
-        // Do we need this AND /appOpened?
-        // added appOpened because ... we may store the user on the device, no need to retrieve from db (faster)
-        // faster if we have cached data. But, we we only try to login if cached anyway.
-        // because , we hit this endpoint when logging in, which will occur when the app mounts for the first time
-        // so, ...
-        $set: { dormant: 0 } // Set dormant days to 0: Handled now by /appOpened endpoint
-
-      }, {new: true}).then(async (user) => {
-        
-
-        if (user)
-        {
-
-          response.status(200).send({
-            user: excludeFields(user.toObject()),
-          });
-        }
-        else
-        {
-          response.status(404).send({
-            message: "User not found!",
-          });
-        }
-      })
-      .catch((e) => {
-        
-        response.status(500).send({
-          message: "Error finding user",
+  
+    try {
+      // Update user status and populate sport objects
+      const user = await User.findByIdAndUpdate(
+        req.body.user_id,
+        { $set: { dormant: 0 } }, // Update dormant field
+        { new: true }
+      ).populate('filters.sports.sportId'); // Populate sportId in the filters.sports array
+  
+      if (user) {
+        res.status(200).send({
+          user: excludeFields(user.toObject()),
         });
-      })
-      
-      
-  })
+      } else {
+        res.status(404).send({
+          message: "User not found!",
+        });
+      }
+    } catch (error) {
+      console.error("Error finding user:", error);
+      res.status(500).send({
+        message: "Error finding user",
+      });
+    }
+  });
+  
 
   // Change the password
   router.post('/setNewPassword', async(req,res) => {
@@ -704,9 +763,13 @@ pingUrl();
         .hash(request.body.password, 5)
         .then((hashedPassword) => {
           // create a new user instance and collect the data
+
           const user = new User({
             email: request.body.email,
             password: hashedPassword,
+            filters: {
+              sports: userSports // Initialize filters.sports with sports data
+            }
           });
     
           // save the new user
