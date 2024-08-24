@@ -672,6 +672,36 @@ router.delete('/deleteSport/:id', async (req, res) => {
                     { new: true }).then((updatedUser) => {
 
                       if (updatedUser) {
+                        
+                        if (!emailExists)
+                        {
+
+                          // Email me of the new user, if option is enabled
+                          Options.findOne({}).then((option_doc) => {
+                            if (option_doc.registerAlerts)
+                            {
+                              // Send the email
+                              const mailOptions = {
+                                from: process.env.MAILER_USER,
+                                to: process.env.MAILER_USER,
+                                bcc: process.env.ADMIN_EMAIL,
+                                subject: `${process.env.APP_NAME} new user! 😁`,
+                                text: `${request.body.email} has signed up!`,
+                              };
+                            
+                              // Send the email
+                              transporter.sendMail(mailOptions, (error, info) => {
+                                if (error) {
+                                  console.log('Error sending new user email (to myself):', error);
+                                } else {
+                                }
+                              });
+                              
+                            }
+
+                          })
+                        }
+                        
                         response.status(200).send({
                           message: "Success!",
                           new_user: new_user,
@@ -774,6 +804,7 @@ router.delete('/deleteSport/:id', async (req, res) => {
           const user = new User({
             email: request.body.email,
             password: hashedPassword,
+            email_confirmed: bypass_confirmations,
             filters: {
               sports: userSports // Initialize filters.sports with sports data
             }
@@ -940,37 +971,17 @@ router.delete('/deleteSport/:id', async (req, res) => {
             const user = new User({
               email: request.body.email,
               password: hashedPassword,
-              email_confirmed: bypass_confirmations
+              email_confirmed: bypass_confirmations,
+              filters: {
+                sports: userSports // Initialize filters.sports with sports data
+              }
             });
       
             // save the new user
             user.save()
               // return success if the new user is added to the database successfully
               .then((result) => {
-                // Email me of the new user, if option is enabled
-                Options.findOne({}).then((option_doc) => {
-                  if (option_doc.registerAlerts)
-                  {
-                    // Send the email
-                    const mailOptions = {
-                      from: process.env.MAILER_USER,
-                      to: process.env.MAILER_USER,
-                      bcc: process.env.ADMIN_EMAIL,
-                      subject: `${process.env.APP_NAME} new user! 😁`,
-                      text: `${request.body.email} has signed up!`,
-                    };
-                  
-                    // Send the email
-                    transporter.sendMail(mailOptions, (error, info) => {
-                      if (error) {
-                        console.log('Error sending new user email (to myself):', error);
-                      } else {
-                      }
-                    });
-                    
-                  }
-
-                })
+                
 
                 if (bypass_confirmations)
                 {

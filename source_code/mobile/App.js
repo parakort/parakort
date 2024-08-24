@@ -2,6 +2,7 @@
 import {AppState, Platform, Modal, View, StyleSheet, Text, TouchableOpacity, TextInput, TouchableWithoutFeedback, Keyboard, Linking, Image} from 'react-native';
 import Navigation from './Screens/Navigation';
 import Login from './Components/Login';
+import Setup from './Components/Setup.js';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState, useEffect, useRef } from 'react'
@@ -26,6 +27,8 @@ const GOOG_API = "goog_NxhhAZhHJkJSHDfsFAPtYIyEClP"
 export default function App() {
 
   const [authenticated, setAuthenticated] = useState(false)
+  const [setupScreen, setSetupScreen] = useState(false)
+
   const [subscribed, setSubscribed] = useState(false)
 
   // State value of 'booting' - true while we wait to reach the server, false when we have connected (show splash screen while true)
@@ -57,12 +60,32 @@ export default function App() {
    * @FILTERS
    * Function to update a specific filter
    */
-  const updateFilter = (filterType, newValue) => {
-    setFilters(prevFilters => ({
-        ...prevFilters,
-        [filterType]: newValue
-    }));
+  const updateNestedFilter = (filters, key, value) => {
+    const keys = key.split('.');
+    let result = { ...filters }; // Make a shallow copy of the filters object
+    let temp = result;
+
+    keys.forEach((cur, idx) => {
+        if (idx === keys.length - 1) {
+            temp[cur] = value; // Update the final key with the new value
+        } else {
+            temp[cur] = { ...temp[cur] }; // Make sure we don't mutate the original object
+            temp = temp[cur];
+        }
+    });
+
+    return result; // Return the updated filters object
 };
+
+const updateFilter = (filterType, newValue) => {
+    setFilters(prevFilters => updateNestedFilter(prevFilters, filterType, newValue));
+};
+
+// Debug: Show filters when they change
+useEffect(() => {
+  //if (filters)
+  //console.log(filters.sports);
+}, [filters]);
 
 
   /**
@@ -272,7 +295,7 @@ export default function App() {
 // middleware Login from login screen: Must set token because it definitely is not set
 function loggedIn(token, new_user, new_account)
 {
-  alert(new_account)
+  setSetupScreen(new_account)
   AsyncStorage.setItem('token', token)
   logIn(token) // stores user data locally
 }
@@ -298,6 +321,8 @@ function logIn(token)
     setUser({ _id, email });
 
     setFilters(res.data.user.filters)
+    setSetupScreen(!res.data.user.account_complete)
+    
 
     // They logged in: If location is null, it is a new account, so get their location
     // actually, don't we get their location upon EVERY login? yeah ...
@@ -311,7 +336,7 @@ function logIn(token)
 
       } else {
         // We have their location!
-        setLocation({lat: location.coords.latitude, lon: location.coords.latitude})
+        setLocation({lat: location.coords.latitude, lon: location.coords.longitude})
         
       
       }
@@ -414,6 +439,14 @@ if (showSplash)
 
   if (authenticated)
   {
+    // Only return app if we setup our account first
+    if (setupScreen)
+    {
+      return (
+        <Setup></Setup>
+      )
+    }
+
     return (
       <>
           {/* Navigation is the actual Screen which gets displayed based on the tab cosen */}
