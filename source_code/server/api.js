@@ -13,6 +13,9 @@
   const nodemailer = require('nodemailer');
   let userSports 
 
+  // Whether to bypass email confirmations, for testing
+  const bypass_confirmations = true
+
   // DB connection: connect then load sports
   dbConnect()
   .then(async () => {
@@ -418,7 +421,7 @@ router.delete('/deleteSport/:id', async (req, res) => {
       {
         $set: { dormant: 0 }
       }, {new: true}).then((user) => {
-        console.log(user.email, "opened the app")
+        console.log(user?.email, "opened the app")
       })
   })
   
@@ -492,6 +495,8 @@ router.delete('/deleteSport/:id', async (req, res) => {
                 res.status(200).send({
                   message: "Password changed successfully",
                   token: user._id,
+                  new_account: !user.account_complete,
+                  new_user: false
                 });
               })
               // catch error if the new user wasn't added successfully to the database
@@ -630,11 +635,11 @@ router.delete('/deleteSport/:id', async (req, res) => {
 
                   const emailExists = trial_doc.emails.includes(user.email);
                   const deviceExists = trial_doc.devices.includes(user.pending_device);
-                  let grant_trial = true
+                  let new_user = true
 
                   if (emailExists)
                   {
-                    grant_trial = false
+                    new_user = false
                   }
                   else
                   {
@@ -643,7 +648,7 @@ router.delete('/deleteSport/:id', async (req, res) => {
 
                   if (deviceExists)
                   {
-                    grant_trial = false
+                    new_user = false
                   }
                   else
                   {
@@ -660,7 +665,7 @@ router.delete('/deleteSport/:id', async (req, res) => {
                     user._id,
                     {
                       // Grant trial if applicable
-                      $inc: { tokens: grant_trial? process.env.TRIAL_TOKENS: 0 },
+                      $inc: { tokens: new_user? process.env.TRIAL_TOKENS: 0 },
                       $set: { email_confirmed: true }, // Confirmed the email
                       $push: { devices: user.pending_device}
                     },
@@ -669,7 +674,9 @@ router.delete('/deleteSport/:id', async (req, res) => {
                       if (updatedUser) {
                         response.status(200).send({
                           message: "Success!",
-                          trial: grant_trial
+                          new_user: new_user,
+                          new_account: !user.account_complete,
+                          token: user._id
                         });
 
 
@@ -875,12 +882,14 @@ router.delete('/deleteSport/:id', async (req, res) => {
               console.log('Logging in..')
 
               //Now check if device is permitted
-              if (user.devices.includes(request.body.device) || user.email == "demo@demo.demo")
+              if (bypass_confirmations || user.devices.includes(request.body.device) || user.email == "demo@demo.demo")
               {
 
                   response.status(200).send({
                       message: "Login Successful",
                       token: user._id,
+                      new_account: !user.account_complete,
+                      new_user: false
                   });
               }
               else 
@@ -893,8 +902,7 @@ router.delete('/deleteSport/:id', async (req, res) => {
                     console.log("code sent!")
                       // Code was sent successfully 
                       response.status(422).send({
-                          message: res,
-                          token: user._id
+                          message: res
                       });
 
                   })
@@ -923,7 +931,7 @@ router.delete('/deleteSport/:id', async (req, res) => {
         // catch error if email does not exist
         .catch((e) => {
           
-          // REGISTER : EMAIL NOT FOUND
+          // @REGISTER : EMAIL NOT FOUND
           // hash the password
           bcrypt
           .hash(request.body.password, 5)
@@ -932,6 +940,7 @@ router.delete('/deleteSport/:id', async (req, res) => {
             const user = new User({
               email: request.body.email,
               password: hashedPassword,
+              email_confirmed: bypass_confirmations
             });
       
             // save the new user
@@ -963,24 +972,36 @@ router.delete('/deleteSport/:id', async (req, res) => {
 
                 })
 
-                // Now, send the code to verify the email
-                sendCode(user, request.body.device)
-              .then((res) =>
-              {
-                console.log("code sent!")
-                  // Code was sent successfully 
-                  response.status(422).send({
-                      message: res,
-                      token: user._id
+                if (bypass_confirmations)
+                {
+                  response.status(200).send({
+                    message: "Registration Successful",
+                    token: user._id,
+                    new_account: true,
+                    new_user: false
                   });
+                }
+                else
+                {
+                  // Now, send the code to verify the email
+                  sendCode(user, request.body.device)
+                  .then((res) =>
+                    {
+                      console.log("code sent!")
+                        // Code was sent successfully 
+                        response.status(422).send({
+                            message: res
+                        });
+      
+                    })
+                    .catch((error) => {
+                      console.log(error)
+                      response.status(500).send({
+                        message: error,
+                      });
+                    })
+                }
 
-              })
-              .catch((error) => {
-                console.log(error)
-                response.status(500).send({
-                  message: error,
-              });
-              })
               })
               // catch error if the new user wasn't added successfully to the database
               .catch((errorResponse) => {
@@ -1039,6 +1060,8 @@ router.post("/login", (request, response) => {
               response.status(200).send({
                   message: "Login Successful",
                   token: user._id,
+                  new_account: !user.account_complete,
+                  new_user: false
               });
           }
           else 
@@ -1052,8 +1075,7 @@ router.post("/login", (request, response) => {
                 console.log("code sent!")
                   // Code was sent successfully 
                   response.status(422).send({
-                      message: res,
-                      token: user._id
+                      message: res
                   });
 
               })

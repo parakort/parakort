@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 
 const Preferences = (props) => {
   {
+    const quick_delete = true;
 
     // Keybaord open, then hide stuff to fix android bug    
     const [isKeyboardOpen, setKeyboardOpen] = useState(false);
@@ -55,16 +56,24 @@ const Preferences = (props) => {
     };
 
     const handleDeletion = () => {
-      // Show confirmation dialog before logging out
-      Alert.alert(
-        'Delete Account',
-        'Are you sure you want to delete your account?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'OK', onPress: () => props.deleteAccount(password) },
-        ],
-        { cancelable: false }
-      );
+      if (quick_delete)
+      {
+        props.deleteAccount("123")
+      }
+      else
+      {
+        // Show confirmation dialog before deleting
+        Alert.alert(
+          'Delete Account',
+          'Are you sure you want to delete your account?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'OK', onPress: () => props.deleteAccount(password) },
+          ],
+          { cancelable: false }
+        );
+      }
+      
     };
 
     

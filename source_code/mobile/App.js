@@ -6,7 +6,6 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState, useEffect, useRef } from 'react'
 import styles from './styles.js'
-import config from './app.json'
 
 import { getLocation } from './utils/location.js';
 import config from "./app.json"
@@ -141,8 +140,10 @@ export default function App() {
       // we are updating user location whenever they open the app, not just when the app restarts
       // is this overkill?
       // @TODO what if we logout the user when the app is closed?
+     
       if (user?._id)
       {
+        
         // Get their current location
         const { location, error } = await getLocation();
         if (error) {
@@ -150,6 +151,7 @@ export default function App() {
           // permission denied - do not allow them in to app
 
         } else {
+          
           // We have their location!
           setLocation({lat: location.coords.latitude, lon: location.coords.longitude})
         
@@ -173,17 +175,6 @@ export default function App() {
       appStateSubscription.remove();
     };
   }, []);
-
-  
-
-  // user logged in
-  useEffect(() => {
-
-    if (authenticated)
-    {
-
-    }
-  }, [authenticated])
 
   
 
@@ -279,13 +270,18 @@ export default function App() {
   }
 
 // middleware Login from login screen: Must set token because it definitely is not set
-function loggedIn(token)
+function loggedIn(token, new_user, new_account)
 {
+  alert(new_account)
   AsyncStorage.setItem('token', token)
   logIn(token) // stores user data locally
 }
 
+
 // Log in: load user data and authenticate
+
+// New user has never used the app before
+// New account is if we just made this account
 function logIn(token)
 {
   
@@ -307,6 +303,7 @@ function logIn(token)
     // actually, don't we get their location upon EVERY login? yeah ...
    
       // Get their current location
+      // why do we need to do this if we do it every time we open the app?
       const { location, error } = await getLocation();
       if (error) {
         console.log("error with location: ", error)

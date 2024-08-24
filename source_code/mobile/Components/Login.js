@@ -61,7 +61,6 @@ export default function LoginScreen(props) {
  
   
   const [deviceId, setDeviceId] = useState('');
-  const [userId, setUserId] = useState('')
 
   useEffect(() => {
     const getDeviceId = async () => {
@@ -106,10 +105,10 @@ export default function LoginScreen(props) {
     .then((res) =>
     {
       // Credentials valid. And device is permitted
-      // This section runs iff they do not need to confirm their device when logging in. Right now, this is NEVER!
+      // This section runs iff they do not need to confirm their device when logging in.
       // Instead the below code in the onFulfill function will run when confirming code.
       setStatus('Logging in...')
-      props.login(res.data.token)
+      props.login(res.data.token, res.data.new_user, res.data.new_account)
       // the above should also provide any metadata such as preferences, instead of the /user endpoint
     })
     .catch((e) => {
@@ -125,7 +124,6 @@ export default function LoginScreen(props) {
       {
         // New device, code sent
         setStatus('Please enter the code sent to your email.')
-        setUserId(e.response.data.token)
 
         // Load UI for code entry
         setShowCode(true)
@@ -155,7 +153,7 @@ export default function LoginScreen(props) {
       // This section runs iff they do not need to confirm their device when logging in. Right now, this is NEVER!
       // Instead the below code in the onFulfill function will run when confirming code.
       setStatus('Logging in...')
-      props.login(res.data.token)
+      props.login(res.data.token, res.data.new_user, res.data.new_account)
       // the above should also provide any metadata such as preferences, instead of the /user endpoint
     })
     .catch((e) => {
@@ -169,7 +167,6 @@ export default function LoginScreen(props) {
       {
         // New device, code sent
         setStatus('Please enter the code sent to your email.')
-        setUserId(e.response.data.token)
 
         // Load UI for code entry
         setShowCode(true)
@@ -227,9 +224,11 @@ export default function LoginScreen(props) {
       {
         // Login confirmation successful
         setStatus('Logging in...')
-        props.login(userId)
+        // New user has never used the app before
+        // New account is if we just made this account
+        props.login(res.data.token, res.data.new_user, res.data.new_account)
         
-        if (res.data.trial)
+        if (res.data.new_user)
         {
           alert(config.app.welcome_msg)
         }
@@ -272,7 +271,7 @@ export default function LoginScreen(props) {
     axios.post(`${props.api}/setNewPassword`, {resetCode: resetCode, pass: pass1, email: email})
     .then((res) => {
       // force login with new password
-      props.login(res.data.token)
+      props.login(res.data.token, res.data.new_user, res.data.new_account)
 
     })
     .catch((e) => {

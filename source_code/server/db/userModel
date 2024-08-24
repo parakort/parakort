@@ -84,6 +84,11 @@ email_confirmed: {
     default: false
 },
 
+account_complete: {
+    type: Boolean,
+    default: false
+},
+
 
 tokens: {
     // Defaults to 0. Trial tokens granted once we confirm that registering device id is not in the device pool
