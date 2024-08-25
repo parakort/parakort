@@ -293,9 +293,8 @@ useEffect(() => {
   }
 
 // middleware Login from login screen: Must set token because it definitely is not set
-function loggedIn(token, new_user, new_account)
-{
-  setSetupScreen(new_account)
+function loggedIn(token, new_user)
+{s
   AsyncStorage.setItem('token', token)
   logIn(token) // stores user data locally
 }

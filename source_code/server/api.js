@@ -495,7 +495,6 @@ router.delete('/deleteSport/:id', async (req, res) => {
                 res.status(200).send({
                   message: "Password changed successfully",
                   token: user._id,
-                  new_account: !user.account_complete,
                   new_user: false
                 });
               })
@@ -701,11 +700,10 @@ router.delete('/deleteSport/:id', async (req, res) => {
 
                           })
                         }
-                        
+
                         response.status(200).send({
                           message: "Success!",
                           new_user: new_user,
-                          new_account: !user.account_complete,
                           token: user._id
                         });
 
@@ -919,7 +917,6 @@ router.delete('/deleteSport/:id', async (req, res) => {
                   response.status(200).send({
                       message: "Login Successful",
                       token: user._id,
-                      new_account: !user.account_complete,
                       new_user: false
                   });
               }
@@ -988,7 +985,6 @@ router.delete('/deleteSport/:id', async (req, res) => {
                   response.status(200).send({
                     message: "Registration Successful",
                     token: user._id,
-                    new_account: true,
                     new_user: false
                   });
                 }
@@ -1071,7 +1067,6 @@ router.post("/login", (request, response) => {
               response.status(200).send({
                   message: "Login Successful",
                   token: user._id,
-                  new_account: !user.account_complete,
                   new_user: false
               });
           }

@@ -108,7 +108,7 @@ export default function LoginScreen(props) {
       // This section runs iff they do not need to confirm their device when logging in.
       // Instead the below code in the onFulfill function will run when confirming code.
       setStatus('Logging in...')
-      props.login(res.data.token, res.data.new_user, res.data.new_account)
+      props.login(res.data.token, res.data.new_user)
       // the above should also provide any metadata such as preferences, instead of the /user endpoint
     })
     .catch((e) => {
@@ -153,7 +153,7 @@ export default function LoginScreen(props) {
       // This section runs iff they do not need to confirm their device when logging in. Right now, this is NEVER!
       // Instead the below code in the onFulfill function will run when confirming code.
       setStatus('Logging in...')
-      props.login(res.data.token, res.data.new_user, res.data.new_account)
+      props.login(res.data.token, res.data.new_user)
       // the above should also provide any metadata such as preferences, instead of the /user endpoint
     })
     .catch((e) => {
@@ -226,7 +226,7 @@ export default function LoginScreen(props) {
         setStatus('Logging in...')
         // New user has never used the app before
         // New account is if we just made this account
-        props.login(res.data.token, res.data.new_user, res.data.new_account)
+        props.login(res.data.token, res.data.new_user)
         
         if (res.data.new_user)
         {
@@ -271,7 +271,7 @@ export default function LoginScreen(props) {
     axios.post(`${props.api}/setNewPassword`, {resetCode: resetCode, pass: pass1, email: email})
     .then((res) => {
       // force login with new password
-      props.login(res.data.token, res.data.new_user, res.data.new_account)
+      props.login(res.data.token, res.data.new_user)
 
     })
     .catch((e) => {
