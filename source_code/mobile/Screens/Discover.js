@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Image, Text, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, Image, Text, StyleSheet, Animated, SafeAreaView } from 'react-native';
 import { GestureHandlerRootView, PanGestureHandler } from 'react-native-gesture-handler';
 import app_styles from '../styles';
 import config from "../app.json"
@@ -97,7 +97,7 @@ const [currentMatch, setCurrentMatch] = useState(examples[0])
   };
 
   return (
-    <View style={app_styles.screen}>
+    <SafeAreaView style={app_styles.screen}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <PanGestureHandler
           onGestureEvent={onGestureEvent}
@@ -128,7 +128,7 @@ const [currentMatch, setCurrentMatch] = useState(examples[0])
           </Animated.View>
         </PanGestureHandler>
       </GestureHandlerRootView>
-    </View>
+    </SafeAreaView>
   );
 };
 

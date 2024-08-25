@@ -321,6 +321,7 @@ function logIn(token)
 
     setFilters(res.data.user.filters)
     setSetupScreen(!res.data.user.account_complete)
+
     
 
     // They logged in: If location is null, it is a new account, so get their location

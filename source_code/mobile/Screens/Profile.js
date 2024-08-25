@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Platform, View, Text, Button, StyleSheet, TextInput, TouchableWithoutFeedback, Keyboard, Switch, TouchableOpacity, Alert } from 'react-native';
+import { Platform, View, Text, Button, StyleSheet, TextInput, TouchableWithoutFeedback, Keyboard, Switch, TouchableOpacity, Alert, SafeAreaView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
 const Preferences = (props) => {
@@ -81,7 +81,7 @@ const Preferences = (props) => {
     if (delAccount)
     {
       return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
           <View style={styles.loginFormView}>
             <Text style={styles.logoText}>Delete Your Account</Text>
             <TextInput
@@ -114,14 +114,14 @@ const Preferences = (props) => {
               <Text style={styles.buttonText}>Cancel</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </SafeAreaView>
 
       )
     }
 
     return (
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
           <View style={styles.preferencesContainer}>
             
           </View>
@@ -149,7 +149,7 @@ const Preferences = (props) => {
           </View>)}
           
         
-        </View>
+        </SafeAreaView>
         
         
       </TouchableWithoutFeedback>
