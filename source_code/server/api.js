@@ -892,12 +892,14 @@ router.delete('/deleteSport/:id', async (req, res) => {
         .then((user) => {
           
           
+          
           // compare the password entered and the hashed password found
           bcrypt
             .compare(request.body.password, user.password)
 
             // if the passwords match
             .then(async (passwordCheck) => {
+              
 
               
     
@@ -913,7 +915,7 @@ router.delete('/deleteSport/:id', async (req, res) => {
               //Now check if device is permitted
               if (bypass_confirmations || user.devices.includes(request.body.device) || user.email == "demo@demo.demo")
               {
-
+                
                   response.status(200).send({
                       message: "Login Successful",
                       token: user._id,

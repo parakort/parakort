@@ -9,6 +9,7 @@ import { useState, useEffect, useRef } from 'react'
 import styles from './styles.js'
 
 import { getLocation } from './utils/location.js';
+//import { NetworkInfo } from 'react-native-network-info';
 import config from "./app.json"
 
 
@@ -25,6 +26,12 @@ const APPL_API = "appl_iymEcrjJXGyUyYLMNqGXZYiaKvP"
 const GOOG_API = "goog_NxhhAZhHJkJSHDfsFAPtYIyEClP"
 
 export default function App() {
+
+  // useEffect(() => {
+  //   NetworkInfo.getIPV4Address().then(ipv4Address => {
+  //     console.log(ipv4Address)
+  //   });
+  // }, []);
 
   const [authenticated, setAuthenticated] = useState(false)
   const [setupScreen, setSetupScreen] = useState(false)
@@ -294,7 +301,7 @@ useEffect(() => {
 
 // middleware Login from login screen: Must set token because it definitely is not set
 function loggedIn(token, new_user)
-{s
+{
   AsyncStorage.setItem('token', token)
   logIn(token) // stores user data locally
 }

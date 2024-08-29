@@ -1,22 +1,28 @@
 import React, { useState } from 'react';
-import { SafeAreaView, View, Text, TextInput, Button, StyleSheet, TouchableOpacity } from 'react-native';
+import { SafeAreaView, View, Text, Button, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import DatePicker from 'react-native-date-picker';
 
 const Setup = () => {
+  const maxDate = new Date();
+  maxDate.setFullYear(maxDate.getFullYear() - 18); 
+
   const [step, setStep] = useState(0);
   const [userDetails, setUserDetails] = useState({
-    birthdate: '',
+    birthdate: maxDate,
     firstName: '',
     lastName: '',
     gender: '',
     bio: '',
   });
+  const [open, setOpen] = useState(false);
 
   const handleNext = () => setStep((prev) => prev + 1);
-  const handleSkip = () => setStep((prev) => prev + 1);
 
   const handleInputChange = (field, value) => {
     setUserDetails({ ...userDetails, [field]: value });
   };
+
+     
 
   const renderStepContent = () => {
     switch (step) {
@@ -24,26 +30,39 @@ const Setup = () => {
         return (
           <>
             <Text style={styles.label}>Enter your birthdate:</Text>
-            <TextInput
+            <TouchableOpacity
+              onPress={() => setOpen(true)}
               style={styles.input}
-              placeholder="MM/DD/YYYY"
-              value={userDetails.birthdate}
-              onChangeText={(text) => handleInputChange('birthdate', text)}
+            >
+              <Text>{userDetails.birthdate.toDateString()}</Text>
+            </TouchableOpacity>
+            <DatePicker
+              modal
+              open={open}
+              date={userDetails.birthdate}
+              mode="date"
+              maximumDate={maxDate}
+              onConfirm={(date) => {
+                setOpen(false);
+                handleInputChange('birthdate', date);
+              }}
+              onCancel={() => setOpen(false)}
             />
-            <Text style={styles.label}>Enter your first name:</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="First Name"
-              value={userDetails.firstName}
-              onChangeText={(text) => handleInputChange('firstName', text)}
-            />
-            <Text style={styles.label}>Enter your last name:</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Last Name"
-              value={userDetails.lastName}
-              onChangeText={(text) => handleInputChange('lastName', text)}
-            />
+            <Text style={styles.label}>Enter your name:</Text>
+            <View style={styles.nameContainer}>
+              <TextInput
+                style={[styles.input, styles.nameInput]}
+                placeholder="First Name"
+                value={userDetails.firstName}
+                onChangeText={(text) => handleInputChange('firstName', text)}
+              />
+              <TextInput
+                style={[styles.input, styles.nameInput]}
+                placeholder="Last Name"
+                value={userDetails.lastName}
+                onChangeText={(text) => handleInputChange('lastName', text)}
+              />
+            </View>
             <Text style={styles.label}>Select your gender:</Text>
             <View style={styles.genderContainer}>
               <TouchableOpacity
@@ -92,11 +111,6 @@ const Setup = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.contentContainer}>{renderStepContent()}</View>
       <View style={styles.buttonContainer}>
-        {step < 2 && (
-          <TouchableOpacity onPress={handleSkip} style={styles.skipButton}>
-            <Text style={styles.buttonText}>Skip</Text>
-          </TouchableOpacity>
-        )}
         <TouchableOpacity onPress={handleNext} style={styles.nextButton}>
           <Text style={styles.buttonText}>{step === 1 ? 'Finish' : 'Next'}</Text>
         </TouchableOpacity>
@@ -114,6 +128,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
+    padding: 20,
     justifyContent: 'center',
   },
   label: {
@@ -127,6 +142,14 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderRadius: 5,
     fontSize: 16,
+  },
+  nameContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  nameInput: {
+    flex: 1,
+    marginRight: 10, // Add margin between first and last name fields
   },
   bioInput: {
     height: 100,

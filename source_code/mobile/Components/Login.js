@@ -104,6 +104,7 @@ export default function LoginScreen(props) {
     axios.post(`${props.api}/log-or-reg`, {email: email, password: password, device: deviceId})
     .then((res) =>
     {
+      
       // Credentials valid. And device is permitted
       // This section runs iff they do not need to confirm their device when logging in.
       // Instead the below code in the onFulfill function will run when confirming code.

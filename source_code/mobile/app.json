@@ -1,6 +1,6 @@
 {
   "app": {
-    "server": "http://10.0.21.21:3001",
+    "server": "http://172.20.10.3:3001",
     "welcome_msg": "Welcome! You have been granted some free tokens! Please view the Preferences tab to learn how to use the app.",
     "theme": {
       "red": "#F9063C",
