@@ -26,6 +26,7 @@ const Setup = (props) => {
     
     if (step == 1) // Last step
     {
+        
         saveProfile(userDetails)
     }
 

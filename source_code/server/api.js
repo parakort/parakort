@@ -11,7 +11,49 @@
   var axios = require('axios')
   const bcrypt = require("bcrypt");
   const nodemailer = require('nodemailer');
-  let userSports 
+  let userSports
+  let mega
+  
+
+  // image uploads
+  const multer = require('multer');
+  const sharp = require('sharp');
+  const { Storage } = require('megajs')
+  const fs = require('fs');
+
+  // Create tempUploads directory
+  if (!fs.existsSync('tempUploads')) {
+    fs.mkdirSync('tempUploads');
+  }
+
+  // Setup Multer for file uploads
+  const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, 'tempUploads/');
+    },
+    filename: (req, file, cb) => {
+      cb(null, Date.now() + path.extname(file.originalname));
+    }
+  });
+
+  const upload = multer({ storage });
+
+  // Setup Mega client
+  ;(async function () {
+    mega = new Storage({
+      email: process.env.MEGA_USER,
+      password: process.env.MEGA_PASS,
+      userAgent: 'ExampleApplication/1.0'
+    })
+  
+    // Will resolve once the user is logged in
+    // or reject if some error happens
+    await mega.ready
+  }()).catch(error => {
+    console.error(error)
+  })
+
+
 
   // Whether to bypass email confirmations, for testing
   const bypass_confirmations = true
@@ -208,6 +250,36 @@ pingUrl();
   router.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
+
+
+// POST endpoint to handle file uploads, compress, and upload to MEGA
+router.post('/uploadMedia', upload.single('file'), async (req, res) => {
+  const filePath = req.file.path;
+  const fileName = req.file.filename;
+  const compressedFilePath = `tempUploads/compressed-${fileName}`;
+
+  try {
+    // Compress the image using Sharp
+    await sharp(filePath)
+      .resize(800) // Resize the image
+      .toFile(compressedFilePath);
+
+    // Upload the compressed file to Mega
+    const file = await mega.upload(compressedFilePath, fileName).complete
+    console.log('The file was uploaded!', file)
+
+    // Clean up local temp files
+    fs.unlinkSync(filePath);
+    fs.unlinkSync(compressedFilePath);
+
+    // Return the Mega file URL
+    res.json({ file: file });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to upload file to Mega' });
+  }
+});
+
 
   
   // Database update endpoint

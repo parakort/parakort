@@ -69,14 +69,47 @@ export default function App() {
   }
 
   // provided all profile details: save to db
-  function saveProfile(profile)
+  async function saveProfile(profile)
   {
     // should add a true false to handle failed api requests
 
     // need to also intercept profile.media and upload to S3 and just provide 
 
-    console.log(profile)
+    let media = [] // cloud links to the user's images
+
+    for (const file of profile.media) {
+      try {
+        // Prepare the form data
+        const formData = new FormData();
+        formData.append('file', {
+          uri: file.uri,
+          name: file.fileName,
+          type: file.mimeType
+        });
+  
+        // Send the file to the server
+        const response = await axios.post(`${BASE_URL}/uploadMedia`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          }
+        });
+  
+        // Log the response
+        console.log('File uploaded at:', response.data.url);
+        media.push(response.data.url)
+
+      } catch (error) {
+        console.error(error);
+        Alert.alert('Error', `Failed to upload ${file.fileName}`);
+      }
+    }
+    
+    // Change the media array to just the array of cloud links
+    profile.media = media
     updateField("profile", profile)
+
+    console.log(profile)
+
   }
 
   /** 
