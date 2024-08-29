@@ -212,21 +212,34 @@ pingUrl();
   
   // Database update endpoint
   // Updates the provided 'field' with the given 'newValue'.
-  router.post('/updateField', async (req, res) => {
+  // need to only permit certain fields: cosmetic ones that can be exposed to frontend
+  const allowedFields = ['location', 'filters', 'profile'];
+
+router.post('/updateField', async (req, res) => {
     const { uid, field, newValue } = req.body;
 
+    // Check if the field is allowed or if it starts with an allowed field followed by a dot
+    const isAllowed = allowedFields.some(allowedField => {
+        return field === allowedField || field.startsWith(`${allowedField}.`);
+    });
+
+    if (!isAllowed) {
+        return res.status(400).send("Invalid field");
+    }
+
     try {
-        // Update the document
-        await User.findByIdAndUpdate(uid, { $set: { [field]: newValue } }, {new: true})
+        // Construct the update object
+        const updateObject = { $set: { [field]: newValue } };
+        
+        let usr = await User.findByIdAndUpdate(uid, updateObject, { new: true });
 
-        // Successful update
         res.status(200).send();
-
     } catch (error) {
         console.error("Error persisting database:", error);
         res.status(500).send();
     }
 });
+
 
 
   async function isSubscribed(user_id) {

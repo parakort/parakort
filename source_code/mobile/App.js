@@ -63,7 +63,23 @@ export default function App() {
   // Help modal text: Contact message
   const [textInputValue, setTextInputValue] = useState('');
 
-  /**
+  // finished setup and tutorial: Show the app content
+  function finishedSetup() {
+    setSetupScreen(false)
+  }
+
+  // provided all profile details: save to db
+  function saveProfile(profile)
+  {
+    // should add a true false to handle failed api requests
+
+    // need to also intercept profile.media and upload to S3 and just provide 
+
+    console.log(profile)
+    updateField("profile", profile)
+  }
+
+  /** 
    * @FILTERS
    * Function to update a specific filter
    */
@@ -323,11 +339,13 @@ function logIn(token)
 
     // user will be used for the immutable fields such as name, email, id.
     // if we bundle all of it into user, like bundling filters too, we can't isolate state changes.
-    const { _id, email } = res.data.user;
-    setUser({ _id, email });
+    const { _id, email, profile } = res.data.user;
+    setUser({ _id, email, profile });
 
     setFilters(res.data.user.filters)
-    setSetupScreen(!res.data.user.account_complete)
+
+    // if we don't have a profile object, user has not yet been setup
+    setSetupScreen(!res.data.user.profile)
 
     
 
@@ -450,7 +468,7 @@ if (showSplash)
     if (setupScreen)
     {
       return (
-        <Setup></Setup>
+        <Setup saveProfile = {saveProfile} finishedSetup = {finishedSetup} ></Setup>
       )
     }
 

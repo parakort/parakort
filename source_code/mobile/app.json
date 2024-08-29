@@ -5,7 +5,8 @@
     "theme": {
       "red": "#F9063C",
       "blue": "#849bff",
-      "creme": "#FFFFF1"
+      "creme": "#FFFFF1",
+      "grey": "#ccc"
     }
   },
   "expo": {
@@ -42,9 +43,6 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION"
       ]
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
     },
     "owner": "peterbuo",
     "extra": {

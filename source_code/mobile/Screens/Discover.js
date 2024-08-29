@@ -16,7 +16,7 @@ let examples = [{
   name: "Sierra Brooks",
   age: 21,
   description: "Hey! I’m Sierra Brooks, a dedicated golfer looking for a friendly opponent to hit the greens with. I love the challenge of a good game and the camaraderie that comes with it. Whether you're a seasoned player or a passionate newbie, let's tee off and enjoy the game together! 🏌️‍♀️⛳",
-  image: "https://www.golfwrx.com/wp-content/uploads/2018/10/GettyImages-862903260.jpg"
+  image: "https://images.prestigeonline.com/wp-content/uploads/sites/6/2023/04/10144634/featured_michelle-wie-Thananuwat-Srirasant-Getty-Images-LPGA-copy.jpeg"
 }
 ]
 
