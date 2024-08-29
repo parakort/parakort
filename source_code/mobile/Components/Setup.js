@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { SafeAreaView, View, Text, Button, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { SafeAreaView, View, Text, TouchableOpacity, TextInput, StyleSheet, Image } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 
 const Setup = () => {
   const maxDate = new Date();
-  maxDate.setFullYear(maxDate.getFullYear() - 18); 
+  maxDate.setFullYear(maxDate.getFullYear() - 18);
 
   const [step, setStep] = useState(0);
   const [userDetails, setUserDetails] = useState({
@@ -15,39 +15,28 @@ const Setup = () => {
     bio: '',
   });
   const [open, setOpen] = useState(false);
+  const [birthdateChanged, setBirthdateChanged] = useState(false);
 
-  const handleNext = () => setStep((prev) => prev + 1);
+  const handleNext = () => {
+    if (
+      userDetails.firstName &&
+      userDetails.lastName &&
+      birthdateChanged &&
+      userDetails.gender
+    ) {
+      setStep((prev) => prev + 1);
+    }
+  };
 
   const handleInputChange = (field, value) => {
     setUserDetails({ ...userDetails, [field]: value });
   };
-
-     
 
   const renderStepContent = () => {
     switch (step) {
       case 0:
         return (
           <>
-            <Text style={styles.label}>Enter your birthdate:</Text>
-            <TouchableOpacity
-              onPress={() => setOpen(true)}
-              style={styles.input}
-            >
-              <Text>{userDetails.birthdate.toDateString()}</Text>
-            </TouchableOpacity>
-            <DatePicker
-              modal
-              open={open}
-              date={userDetails.birthdate}
-              mode="date"
-              maximumDate={maxDate}
-              onConfirm={(date) => {
-                setOpen(false);
-                handleInputChange('birthdate', date);
-              }}
-              onCancel={() => setOpen(false)}
-            />
             <Text style={styles.label}>Enter your name:</Text>
             <View style={styles.nameContainer}>
               <TextInput
@@ -63,6 +52,36 @@ const Setup = () => {
                 onChangeText={(text) => handleInputChange('lastName', text)}
               />
             </View>
+
+            <Text style={styles.label}>Enter your birthdate:</Text>
+            <TouchableOpacity
+              onPress={() => setOpen(true)}
+              style={styles.input}
+            >
+              <Text>
+                {birthdateChanged
+                  ? userDetails.birthdate.toLocaleDateString(undefined, {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })
+                  : 'Enter Birthday'}
+              </Text>
+            </TouchableOpacity>
+            <DatePicker
+              modal
+              open={open}
+              date={userDetails.birthdate}
+              mode="date"
+              maximumDate={maxDate}
+              onConfirm={(date) => {
+                setOpen(false);
+                handleInputChange('birthdate', date);
+                setBirthdateChanged(true);
+              }}
+              onCancel={() => setOpen(false)}
+            />
+
             <Text style={styles.label}>Select your gender:</Text>
             <View style={styles.genderContainer}>
               <TouchableOpacity
@@ -109,9 +128,38 @@ const Setup = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Image
+          source={{ uri: 'https://png.pngtree.com/png-vector/20220712/ourmid/pngtree-playing-tennis-ball-png-image_5906916.png' }} // Replace with your image URL or local path
+          style={styles.logo}
+        />
+        <Text style={styles.title}>TheClubhouse</Text>
+      </View>
       <View style={styles.contentContainer}>{renderStepContent()}</View>
       <View style={styles.buttonContainer}>
-        <TouchableOpacity onPress={handleNext} style={styles.nextButton}>
+        <TouchableOpacity
+          onPress={handleNext}
+          style={[
+            styles.nextButton,
+            {
+              backgroundColor:
+                userDetails.firstName &&
+                userDetails.lastName &&
+                birthdateChanged &&
+                userDetails.gender
+                  ? '#007bff'
+                  : '#ccc',
+            },
+          ]}
+          disabled={
+            !(
+              userDetails.firstName &&
+              userDetails.lastName &&
+              birthdateChanged &&
+              userDetails.gender
+            )
+          }
+        >
           <Text style={styles.buttonText}>{step === 1 ? 'Finish' : 'Next'}</Text>
         </TouchableOpacity>
       </View>
@@ -123,8 +171,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'space-between',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center', // Center the header content
     padding: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#ffffff',
+  },
+  logo: {
+    width: 40, // Adjust the size as needed
+    height: 40, // Adjust the size as needed
+    marginRight: 10,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '100', // Set font weight to 100
   },
   contentContainer: {
     flex: 1,
@@ -149,7 +211,7 @@ const styles = StyleSheet.create({
   },
   nameInput: {
     flex: 1,
-    marginRight: 10, // Add margin between first and last name fields
+    marginRight: 10,
   },
   bioInput: {
     height: 100,
@@ -175,18 +237,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   buttonContainer: {
+    padding: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  skipButton: {
-    backgroundColor: '#aaa',
-    padding: 15,
-    borderRadius: 5,
-    flex: 1,
-    marginRight: 10,
-  },
   nextButton: {
-    backgroundColor: '#007bff',
     padding: 15,
     borderRadius: 5,
     flex: 1,
