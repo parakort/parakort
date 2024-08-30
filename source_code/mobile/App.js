@@ -51,7 +51,11 @@ export default function App() {
 
   // useRef prevents a redundant persistance 
   const [filters, setFilters] = useState(null)
+  const [profile, setProfile] = useState(null)
+
   const prevFilters = useRef(null)
+  const prevProfile = useRef(null)
+
   
   // Check if we are logged in
   const [init, setInit] = useState(true)
@@ -68,20 +72,12 @@ export default function App() {
     setSetupScreen(false)
   }
 
-  // provided all profile details: save to db
-  // First time only
-  // Edits will be handled like filters
-  // One function that responds to state updates
-  // Images must be considered carefully:
-  // Must upload media too through endpoint.
-  async function saveProfile(profile)
+  // Media to cloud links
+  async function uploadMedia(media)
   {
-    // should add a true false to handle failed api requests
+    let links = [] // cloud links to the user's images
 
-
-    let media = [] // cloud links to the user's images
-
-    for (const file of profile.media) {
+    for (const file of media) {
       try {
         // Prepare the form data
         const formData = new FormData();
@@ -92,8 +88,7 @@ export default function App() {
         });
 
         // Specify this is a new user (needs a new folder)
-        formData.append('new', true)
-
+        formData.append('new', profile.media.length )
         formData.append('uid', user._id)
   
         // Send the file to the server
@@ -105,27 +100,35 @@ export default function App() {
   
         // Log the response
         //console.log('File uploaded at:', response.data);
-        media.push(response.data)
+        links.push(response.data)
 
       } catch (error) {
         console.error(error);
         Alert.alert('Error', `Failed to upload ${file.fileName}`);
       }
     }
-    
+
+    return links
+  }
+
+  // provided all profile details: save to db
+  // First time only
+  // Edits will be handled like filters
+  // One function that responds to state updates
+  // Images must be considered carefully:
+  // Must upload media too through endpoint.
+  async function makeProfile(profile_in)
+  {
     // Change the media array to just the array of cloud links
-    profile.media = media
-    updateField("profile", profile)
-
-    //console.log(profile)
-
+    profile_in.media = await uploadMedia(profile.media)
+    setProfile(profile_in) // side effect will update db
   }
 
   /** 
    * @FILTERS
    * Function to update a specific filter
    */
-  const updateNestedFilter = (filters, key, value) => {
+  const updateNestedKey = (filters, key, value) => {
     const keys = key.split('.');
     let result = { ...filters }; // Make a shallow copy of the filters object
     let temp = result;
@@ -142,15 +145,16 @@ export default function App() {
     return result; // Return the updated filters object
 };
 
+// Updates a specific filter with state (not in db)
 const updateFilter = (filterType, newValue) => {
-    setFilters(prevFilters => updateNestedFilter(prevFilters, filterType, newValue));
+    setFilters(prevFilters => updateNestedKey(prevFilters, filterType, newValue));
 };
 
-// Debug: Show filters when they change
-useEffect(() => {
-  //if (filters)
-  //console.log(filters.sports);
-}, [filters]);
+// Updates a specific profile key with state (not in db)
+const updateProfile = (key, newValue) => {
+  setProfile(prevProfile => updateNestedKey(prevProfile, key, newValue));
+};
+
 
 
   /**
@@ -189,6 +193,16 @@ useEffect(() => {
     } 
     
   }, [filters])
+
+  useEffect(() => {
+    
+    // Ignores the first update (does not persist), because that is the one coming from the database (would be redundant).
+    if (profile && profile !== prevProfile.current) {
+      updateField("profile", profile)
+      prevProfile.current = profile;
+    } 
+    
+  }, [profile])
 
 
 
@@ -381,10 +395,11 @@ function logIn(token)
 
     // user will be used for the immutable fields such as name, email, id.
     // if we bundle all of it into user, like bundling filters too, we can't isolate state changes.
-    const { _id, email, profile } = res.data.user;
-    setUser({ _id, email, profile });
+    const { _id, email} = res.data.user;
+    setUser({ _id, email});
 
     setFilters(res.data.user.filters)
+    setProfile(res.data.user.profile)
 
     // if we don't have a profile object, user has not yet been setup
     setSetupScreen(!res.data.user.profile)
@@ -510,7 +525,7 @@ if (showSplash)
     if (setupScreen)
     {
       return (
-        <Setup saveProfile = {saveProfile} finishedSetup = {finishedSetup} ></Setup>
+        <Setup makeProfile = {makeProfile} finishedSetup = {finishedSetup} ></Setup>
       )
     }
 

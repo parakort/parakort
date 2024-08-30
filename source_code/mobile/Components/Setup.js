@@ -27,7 +27,7 @@ const Setup = (props) => {
     if (step == 1) // Last step
     {
         
-        saveProfile(userDetails)
+        makeProfile(userDetails)
     }
 
     // Otherwise go to next step
@@ -40,8 +40,8 @@ const Setup = (props) => {
   }
 
   // Saves user info in database and marks as complete
-  const saveProfile = () => {
-    props.saveProfile(userDetails)
+  const makeProfile = () => {
+    props.makeProfile(userDetails)
 
   }
 
