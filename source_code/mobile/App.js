@@ -34,7 +34,7 @@ export default function App() {
   // }, []);
 
   const [authenticated, setAuthenticated] = useState(false)
-  const [setupScreen, setSetupScreen] = useState(false)
+  const [setupScreen, setSetupScreen] = useState(true)
 
   const [subscribed, setSubscribed] = useState(false)
 
@@ -69,11 +69,15 @@ export default function App() {
   }
 
   // provided all profile details: save to db
+  // First time only
+  // Edits will be handled like filters
+  // One function that responds to state updates
+  // Images must be considered carefully:
+  // Must upload media too through endpoint.
   async function saveProfile(profile)
   {
     // should add a true false to handle failed api requests
 
-    // need to also intercept profile.media and upload to S3 and just provide 
 
     let media = [] // cloud links to the user's images
 
@@ -86,6 +90,11 @@ export default function App() {
           name: file.fileName,
           type: file.mimeType
         });
+
+        // Specify this is a new user (needs a new folder)
+        formData.append('new', true)
+
+        formData.append('uid', user._id)
   
         // Send the file to the server
         const response = await axios.post(`${BASE_URL}/uploadMedia`, formData, {
@@ -95,8 +104,8 @@ export default function App() {
         });
   
         // Log the response
-        console.log('File uploaded at:', response.data.url);
-        media.push(response.data.url)
+        //console.log('File uploaded at:', response.data);
+        media.push(response.data)
 
       } catch (error) {
         console.error(error);
@@ -108,7 +117,7 @@ export default function App() {
     profile.media = media
     updateField("profile", profile)
 
-    console.log(profile)
+    //console.log(profile)
 
   }
 

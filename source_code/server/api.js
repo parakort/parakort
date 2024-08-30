@@ -265,20 +265,40 @@ router.post('/uploadMedia', upload.single('file'), async (req, res) => {
       .toFile(compressedFilePath);
 
     // Upload the compressed file to Mega
-    const file = await mega.upload(compressedFilePath, fileName).complete
-    console.log('The file was uploaded!', file)
+    const compressedFileBuffer = fs.readFileSync(compressedFilePath);
+
+    let megaFolder;
+
+    if (req.body.new) {
+      megaFolder = await mega.mkdir(req.body.uid);
+    } else {
+      for (const node of mega.root.children) {
+        if (node.name === req.body.uid && node.directory) {
+          megaFolder = node;
+          break; // Break out of the loop once the folder is found
+        }
+      }
+    }
+
+    if (!megaFolder) {
+      return res.status(404).json({ error: 'Folder not found' });
+    }
+
+    const file = await megaFolder.upload({ name: fileName }, compressedFileBuffer).complete;
+    const link = await file.link();
 
     // Clean up local temp files
     fs.unlinkSync(filePath);
     fs.unlinkSync(compressedFilePath);
 
     // Return the Mega file URL
-    res.json({ file: file });
+    res.send(link);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to upload file to Mega' });
   }
 });
+
 
 
   
