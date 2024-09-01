@@ -11,6 +11,7 @@ import styles from './styles.js'
 import { getLocation } from './utils/location.js';
 //import { NetworkInfo } from 'react-native-network-info';
 import config from "./app.json"
+import RNFS from 'react-native-fs';
 
 
 
@@ -52,9 +53,11 @@ export default function App() {
   // useRef prevents a redundant persistance 
   const [filters, setFilters] = useState(null)
   const [profile, setProfile] = useState(null)
+  const [media, setMedia] = useState(null)
 
   const prevFilters = useRef(null)
   const prevProfile = useRef(null)
+  const MEDIA_EXPIRE_AFTER = 3
 
   
   // Check if we are logged in
@@ -119,8 +122,8 @@ export default function App() {
   // Must upload media too through endpoint.
   async function makeProfile(profile_in)
   {
-    // Change the media array to just the array of cloud links
-    profile_in.media = await uploadMedia(profile.media)
+    // Upload the new user's media and store their profile
+    uploadMedia(profile_in.media)
     setProfile(profile_in) // side effect will update db
   }
 
@@ -168,6 +171,75 @@ const updateProfile = (key, newValue) => {
   }
 
   
+  // Download a given user's profile pics from the cloud
+  // Deletes existing content if it exists
+  // we call this if we want to forecefully get the user's latest pictures
+  // (we won't call to get our own pics if we already have them)
+  const downloadMediaFiles = async (uid, does_expire) => {
+    // Define a path where this user's media is to be stored
+    const directoryPath = `${RNFS.DocumentDirectoryPath}/${uid}`;
+  
+    // Check if the directory exists for the user's pictures
+    const directoryExists = await RNFS.exists(directoryPath);
+  
+    // If the directory does not exist, create it
+    if (!directoryExists) {
+      await RNFS.mkdir(directoryPath);
+    } else {
+      // If directory does exist, delete existing data, it is out of date
+      const files = await RNFS.readDir(directoryPath);
+  
+      // Iterate over the files and delete each one
+      for (const file of files) {
+        await RNFS.unlink(file.path);
+      }
+    }
+  
+    try {
+      // Now redownload all files
+      const res = await axios.post(`${BASE_URL}/downloadMedia`, { uid });
+      let localMedia = res.data.media;
+      let userProfile = res.data.profile;
+  
+      for (const media of localMedia) {
+        media.uri = await saveFileFromBuffer(media);
+        delete media.data; // We don't need to store the buffer locally
+      }
+
+      // Media object which also has the expiry field so we can delete temporary users (in cache for swiping) after time
+      // 0 expiry users will never expire (self, matches)
+      let userMedia = {profile: uid == user._id ? null : userProfile, media: localMedia, expiry: does_expire? MEDIA_EXPIRE_AFTER: 0}
+  
+      // we have the media for this user. Store it in the media Map, which will store in async storage also
+      const updatedMap = new Map(media);
+      updatedMap.set(user._id, userMedia)
+      setMedia(updatedMap)
+      
+
+    } catch (error) {
+      console.error('Error downloading media files:', error);
+      return null; // Handle errors or return a meaningful value
+    }
+  };
+  
+
+
+
+// Function to save the file from Base64 string
+const saveFileFromBuffer = async (media) => {
+
+  const filePath = `${RNFS.DocumentDirectoryPath}/${user._id}/${media.name}`;
+  const buffer = media.data
+
+  try {
+    await RNFS.writeFile(filePath, buffer, 'base64'); // Directly use base64Data
+    return filePath
+  } catch (error) {
+    console.error('Error saving file:', error);
+  }
+};
+
+  
   // The following side effects persist data to mongo
   // Data is automatically persisted when updating a value with state.
   // For filters, we have a updateFilter function to update only one filter at a time.
@@ -195,6 +267,40 @@ const updateProfile = (key, newValue) => {
   }, [filters])
 
   useEffect(() => {
+    async function getMedia()
+    {
+      // check if we already have user's profile media
+      const directoryPath = `${RNFS.DocumentDirectoryPath}/${user._id}`;
+      const directoryExists = await RNFS.exists(directoryPath);
+
+      // check if we have the map
+      const storedMapString = await AsyncStorage.getItem('mediaMap');
+      let mediaMap = new Map();
+
+      if (storedMapString) {
+        // Convert the stored string back to a Map
+        const storedMapArray = JSON.parse(storedMapString);
+        mediaMap = new Map(storedMapArray);
+        setMedia(mediaMap) // save the existing media in state
+      }
+      
+
+      // If we don't have this user's media stored
+      if (!mediaMap.has(key) || !directoryExists) {
+
+        // Download media and store in the map 
+        // false so that this media does not expire
+        // false is for self or matches, true for swipes
+        downloadMediaFiles(user._id, false)
+        
+      }
+    }
+
+    // The first update (coming from the database, when prevProfile is null,) we want to use to download the media
+    if (profile && !prevProfile.current)
+    {
+      getMedia() // ensure we have our own media
+    }
     
     // Ignores the first update (does not persist), because that is the one coming from the database (would be redundant).
     if (profile && profile !== prevProfile.current) {
@@ -205,6 +311,81 @@ const updateProfile = (key, newValue) => {
   }, [profile])
 
 
+  // Save media map in storage for next time
+  // triggered through downloadMedia(uid), where we want the media for a user
+  // here, we can handle expiry as well.
+  // A new item was just added, so we need to decrease expiry for each item by 1
+  // for any items with expiry 1, delete from the map
+  useEffect(() => {
+    if (media)
+    {
+      async function saveMedia()
+      {
+        // Save the map to async storage for next time
+        const mapArray = Array.from(media.entries()); // Convert the Map to an array
+        await AsyncStorage.setItem('mediaMap', JSON.stringify(mapArray));
+      }
+      
+
+      saveMedia()
+    }
+    
+    
+  }, [media])
+
+  // Shift media:
+  // increases age of all media by 1 such that they all become closer to expiry or expired
+  function shiftMedia() {
+    const updatedMap = new Map(media);
+  
+    for (const key of updatedMap.keys()) {
+      const updatedValue = { ...updatedMap.get(key) }; // Create a shallow copy, since we use .set later. Could just make a deep copy and not use .set, also.
+  
+      if (updatedValue.expiry === 1) {
+        updatedMap.delete(key);
+        // remove the media locally
+        try
+        {
+          RNFS.unlink(`${RNFS.DocumentDirectoryPath}/${id}}`)
+        }
+        catch (error)
+        {
+          console.log("Shift: Error deleting media folder ", key, error)
+        }
+        
+
+      } else if (updatedValue.expiry > 1) {
+        // Decrease expiry by 1
+        updatedValue = { ...updatedValue, expiry: updatedValue.expiry - 1 };
+        updatedMap.set(key, updatedValue);
+      }
+    }
+
+    
+  
+    // Save the new media with state and to local storage
+    setMedia(updatedMap);
+  }
+
+  // Delete media by uid: Aside from expiry, we can delete a media object (user profile and their media ) directly
+  function deleteMedia(uid) {
+    // Shallow copy of the map
+    const updatedMap = new Map(media);
+  
+    updatedMap.delete(key);
+    // remove the media locally
+    try
+    {
+      RNFS.unlink(`${RNFS.DocumentDirectoryPath}/${id}}`)
+    }
+    catch (error)
+    {
+      console.log("Error deleting media folder ", key, error)
+    }
+
+    // Save the new media with state and to local storage
+    setMedia(updatedMap);
+  }
 
 
   // Help modal
@@ -532,7 +713,7 @@ if (showSplash)
     return (
       <>
           {/* Navigation is the actual Screen which gets displayed based on the tab cosen */}
-          <Navigation help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
+          <Navigation user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
           
           
           {/* Help Modal */}

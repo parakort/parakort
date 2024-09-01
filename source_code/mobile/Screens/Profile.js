@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Platform, View, Text, Button, StyleSheet, TextInput, TouchableWithoutFeedback, Keyboard, Switch, TouchableOpacity, Alert, SafeAreaView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { Platform, View, Text, StyleSheet, TextInput, TouchableWithoutFeedback, Keyboard, Switch, TouchableOpacity, Alert, SafeAreaView, Image, Dimensions } from 'react-native';
+import config from '../app.json'
 
-const Preferences = (props) => {
+const Profile = (props) => {
   {
     const quick_delete = true;
 
     // Keybaord open, then hide stuff to fix android bug    
     const [isKeyboardOpen, setKeyboardOpen] = useState(false);
+    const screenWidth = Dimensions.get('window').width;
+    const imageSize = screenWidth * 0.3;
+    const borderRadius = imageSize / 2;
 
     useEffect(() => {
       const keyboardDidShowListener = Keyboard.addListener(
@@ -28,8 +31,6 @@ const Preferences = (props) => {
         keyboardDidHideListener.remove();
       };
     }, []);
-
-    const navigation = useNavigation();
 
 
     // For deletion:
@@ -99,7 +100,7 @@ const Preferences = (props) => {
 
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={[styles.buttonWithBorder, styles.customButton]}
+              style={styles.buttonWithBorder}
               onPress={() => {handleDeletion()}}
             >
               <Text style={styles.buttonText}>Confirm Deletion</Text>
@@ -108,7 +109,7 @@ const Preferences = (props) => {
          
 
             <TouchableOpacity
-              style={[styles.buttonWithBorder, styles.customButton]}
+              style={styles.buttonWithBorder}
               onPress={()=> {setDelAccount(false)}}
             >
               <Text style={styles.buttonText}>Cancel</Text>
@@ -122,7 +123,24 @@ const Preferences = (props) => {
     return (
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <SafeAreaView style={styles.container}>
-          <View style={styles.preferencesContainer}>
+          {/* Profile pic and name */}
+          <View style={styles.imagecontainer}>
+            <Image
+              source={{ uri: props.media? props.media?.get(props.user._id).media[0].uri : "" }}
+              style={[
+                styles.image, 
+                {
+                  width: imageSize,
+                  height: imageSize,
+                  borderRadius: borderRadius,
+                }
+              ]}
+              resizeMode="cover"
+            />
+            <Text>{props.profile.firstName}</Text>
+          </View>
+
+          {/* <View style={styles.preferencesContainer}>
             
           </View>
           {!isKeyboardOpen && (
@@ -131,14 +149,14 @@ const Preferences = (props) => {
           <View style={styles.buttonContainer}>
             
             <TouchableOpacity
-              style={[styles.buttonWithBorder, styles.customButton]}
+              style={styles.buttonWithBorder}
               onPress={handleLogout}
             >
               <Text style={styles.buttonText}>Logout</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.buttonWithBorder, styles.customButton]}
+              style={styles.buttonWithBorder}
               onPress={() => {setDelAccount(true)}}
             >
               <Text style={styles.buttonText}>Delete Account</Text>
@@ -146,7 +164,7 @@ const Preferences = (props) => {
 
 
           </View>
-          </View>)}
+          </View>)} */}
           
         
         </SafeAreaView>
@@ -158,10 +176,23 @@ const Preferences = (props) => {
 };
 
 const styles = StyleSheet.create({
+  imagecontainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    flex: 1,
+  },
+  image: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+    //elevation: 5,
+  },
+
   container: {
     flex: 1,
     padding: 10,
-    justifyContent: 'space-between', // Pushes content and buttons to the top and bottom, respectively
+    //justifyContent: 'space-between', // Pushes content and buttons to the top and bottom, respectively
   },
   logoText: {
     fontSize: Platform.OS === 'ios' && Platform.isPad ? 60 : 40,
@@ -190,15 +221,16 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   buttonWithBorder: {
-    borderWidth: 1,
-    borderColor: 'red',
-    borderRadius: 5,
-  },
-  customButton: {
-    padding: 10,
+    backgroundColor: config.app.theme.grey,
+    padding: 15,
+    margin: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
   },
   buttonText: {
-    color: 'red',
+    color: config.app.theme.red
     
   },
   title: {
@@ -223,4 +255,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Preferences;
+export default Profile;

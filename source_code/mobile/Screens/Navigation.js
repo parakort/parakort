@@ -37,8 +37,6 @@ const Navigation = (props) => {
               
               if (route.name === 'Discover') {
                 iconName = focused ? 'search' : 'search-outline';
-              } else if (route.name === 'Filter') {
-                iconName = focused ? 'list' : 'list-outline';
               } else if (route.name === 'Likes') {
                 iconName = focused ? 'heart' : 'heart-outline';
               } else if (route.name === 'Chat') {
@@ -57,9 +55,6 @@ const Navigation = (props) => {
           <Tab.Screen name="Discover" children={()=>
             <Discover />}/>
 
-          <Tab.Screen name="Filter" children={()=>
-            <Page2 />}/>
-
           <Tab.Screen name="Likes" children={()=>
             <Page2 />}/>
 
@@ -67,7 +62,7 @@ const Navigation = (props) => {
             <Page2 />}/>
 
           <Tab.Screen name="Profile" children={()=>
-            <Profile logout = {props.logout} deleteAccount = {props.deleteAccount}/>}/>
+            <Profile user = {props.user} media = {props.media} profile = {props.profile} updateProfile = {props.updateProfile} logout = {props.logout} deleteAccount = {props.deleteAccount}/>}/>
        
         </Tab.Navigator>
     </NavigationContainer>

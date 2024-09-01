@@ -19,6 +19,7 @@
   const multer = require('multer');
   const sharp = require('sharp');
   const { Storage } = require('megajs')
+  const { File } = require('megajs')
   const fs = require('fs');
 
   // Create tempUploads directory
@@ -250,6 +251,44 @@ pingUrl();
   router.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
+
+router.post('/downloadMedia', async (req,res) => {
+  let megaFolder = null;
+  for (const node of mega.root.children) {
+    if (node.name === req.body.uid && node.directory) {
+      megaFolder = node;
+      break; // Break out of the loop once the folder is found
+    }
+  }
+
+  if (!megaFolder)
+  {
+    res.status(404).send("No user media exists")
+    return
+  }
+
+  let buffers = []
+  
+  for (const item of megaFolder.children) {
+    const type = item.name.includes(".JPG") ? 'Image' : "Video"
+    const file = File.fromURL(item.shareURL)
+    const data = await file.downloadBuffer()
+    buffers.push({name: item.name, type: type, data: Buffer.from(data).toString('base64')})
+  }
+
+  // send the user's profile too, incase its some other user
+  let profile = null;
+
+  User.findById({_id: req.body.uid })
+  .then((user) => {
+    profile = user.profile
+  })
+  .catch((e) => {
+    res.status(500).send(e)
+  })
+
+  res.send({media: buffers, profile: profile})
+})
 
 
 // POST endpoint to handle file uploads, compress, and upload to MEGA
