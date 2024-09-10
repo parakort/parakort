@@ -53,7 +53,7 @@ const Navigation = (props) => {
           })}
         >
           <Tab.Screen name="Discover" children={()=>
-            <Discover />}/>
+            <Discover swiped = {props.swiped} currentSuggestion = {props.currentSuggestion}/>}/>
 
           <Tab.Screen name="Likes" children={()=>
             <Page2 />}/>

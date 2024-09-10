@@ -90,6 +90,11 @@ tokens: {
 
 devices: {
     type: Array
+},
+
+matches: {
+    type: Array,
+    default: []
 }
 
 }, { strict: false })

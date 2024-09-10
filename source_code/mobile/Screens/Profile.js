@@ -4,7 +4,7 @@ import config from '../app.json'
 
 const Profile = (props) => {
   {
-    const quick_delete = true;
+    const quick_delete = false;
 
     // Keybaord open, then hide stuff to fix android bug    
     const [isKeyboardOpen, setKeyboardOpen] = useState(false);

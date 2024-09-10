@@ -21,8 +21,9 @@ let examples = [{
 ]
 
 
-const SwipeableCard = () => {
-const [currentMatch, setCurrentMatch] = useState(examples[0])
+const SwipeableCard = (props) => {
+  // this is temporary, we will really use props.suggestions[0]
+const [currentSuggestion, setCurrentSuggestion] = useState(examples[0])
 
 
   const [translateX] = useState(new Animated.Value(0));
@@ -80,15 +81,22 @@ const [currentMatch, setCurrentMatch] = useState(examples[0])
     }
   };
 
+  // Callback for swiping, match if right
   function swipe(right)
   {
-    setCurrentMatch(currentMatch.age < 30 ? examples[0] : examples[1])
+    // this is temporary
+    setCurrentSuggestion(currentSuggestion.age < 30 ? examples[0] : examples[1])
+    
+    props.swiped(right)
   }
 
+  // called when swiping.
   const replaceCard = (right) => {
-    swipe(right);
-    opacity._value = 0;
+    
+    //opacity._value = 0;
     resetTranslateAnimation.start();
+
+    swipe(right);
 
   };
 
@@ -116,14 +124,14 @@ const [currentMatch, setCurrentMatch] = useState(examples[0])
           >
             <View style={styles.imageContainer}>
               <Image
-                source={{ uri: currentMatch?.image }}
+                source={{ uri: props.currentSuggestion?.media[0].uri }}
                 style={styles.image}
                 onLoad={handleImageLoad} // Trigger when image loads: then we can animate
               />
-              <Text style={styles.name}>{currentMatch?.name}</Text>
+              <Text style={styles.name}>{props.currentSuggestion?.profile.firstName}</Text>
             </View>
             <View style={styles.descriptionContainer}>
-              <Text style={styles.description}>{currentMatch?.description}</Text>
+              <Text style={styles.description}>{props.currentSuggestion?.profile.bio}</Text>
             </View>
           </Animated.View>
         </PanGestureHandler>

@@ -53,11 +53,19 @@ export default function App() {
   // useRef prevents a redundant persistance 
   const [filters, setFilters] = useState(null)
   const [profile, setProfile] = useState(null)
-  const [media, setMedia] = useState(null)
+
+  // Where user data is stored
+  const [media, setMedia] = useState(null)              // Links to local files of our matches, fetched synchronously
+  const [matches, setMatches] = useState(null)          // UID array of our matched users
+  const [suggestions, setSuggestions] = useState(null)  // UID array of suggested users
+
+  const [currentSuggestion, setCurrentSuggestion] = useState(null)  // Current suggested user media
+
+
 
   const prevFilters = useRef(null)
   const prevProfile = useRef(null)
-  const MEDIA_EXPIRE_AFTER = 3
+  const QUEUE_LEN = 3
 
   
   // Check if we are logged in
@@ -78,7 +86,7 @@ export default function App() {
   // Media to cloud links
   async function uploadMedia(media)
   {
-    let links = [] // cloud links to the user's images
+    //let links = [] // cloud links to the user's images
 
     for (const file of media) {
       try {
@@ -93,9 +101,10 @@ export default function App() {
         // Specify this is a new user (needs a new folder)
         formData.append('new', profile.media.length )
         formData.append('uid', user._id)
+
   
         // Send the file to the server
-        const response = await axios.post(`${BASE_URL}/uploadMedia`, formData, {
+        await axios.post(`${BASE_URL}/uploadMedia`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
           }
@@ -103,7 +112,7 @@ export default function App() {
   
         // Log the response
         //console.log('File uploaded at:', response.data);
-        links.push(response.data)
+        //links.push(response.data)
 
       } catch (error) {
         console.error(error);
@@ -111,7 +120,8 @@ export default function App() {
       }
     }
 
-    return links
+    // No longer returning links, because they are not direct downloadable.
+    //return links
   }
 
   // provided all profile details: save to db
@@ -174,13 +184,14 @@ const updateProfile = (key, newValue) => {
   // Download a given user's profile pics from the cloud
   // Deletes existing content if it exists
   // we call this if we want to forecefully get the user's latest pictures
-  // (we won't call to get our own pics if we already have them)
-  const downloadMediaFiles = async (uid, does_expire) => {
+  const downloadMediaFiles = async (uid) => {
+    //console.log("downloading media for", uid)
     // Define a path where this user's media is to be stored
     const directoryPath = `${RNFS.DocumentDirectoryPath}/${uid}`;
   
     // Check if the directory exists for the user's pictures
     const directoryExists = await RNFS.exists(directoryPath);
+    
   
     // If the directory does not exist, create it
     if (!directoryExists) {
@@ -200,15 +211,16 @@ const updateProfile = (key, newValue) => {
       const res = await axios.post(`${BASE_URL}/downloadMedia`, { uid });
       let localMedia = res.data.media;
       let userProfile = res.data.profile;
+      
   
       for (const media of localMedia) {
         media.uri = await saveFileFromBuffer(media);
         delete media.data; // We don't need to store the buffer locally
       }
 
-      // Media object which also has the expiry field so we can delete temporary users (in cache for swiping) after time
-      // 0 expiry users will never expire (self, matches)
-      let userMedia = {profile: uid == user._id ? null : userProfile, media: localMedia, expiry: does_expire? MEDIA_EXPIRE_AFTER: 0}
+      // Media object holds the user's profile and media
+      let userMedia = {profile: uid == user._id ? profile : userProfile, media: localMedia}
+      
   
       // we have the media for this user. Store it in the media Map, which will store in async storage also
       const updatedMap = new Map(media);
@@ -266,40 +278,43 @@ const saveFileFromBuffer = async (media) => {
     
   }, [filters])
 
+  // Recursive loop to suggest users for a match
+  // Their media is downloaded beforehand
+  useEffect(() => {
+
+    if (suggestions)
+    {
+
+      // Do we need to generate more? Recurse if so.
+      if (suggestions.length < QUEUE_LEN) suggestUser()
+    }
+    
+
+  }, [suggestions])
+
   useEffect(() => {
     async function getMedia()
     {
-      // check if we already have user's profile media
-      const directoryPath = `${RNFS.DocumentDirectoryPath}/${user._id}`;
-      const directoryExists = await RNFS.exists(directoryPath);
+      // Load suggestions from async storage
+      // State side effect will ensure we generate enough suggestions, recursively
+      let storedSuggestions = await AsyncStorage.getItem('suggestions');
+      storedSuggestions = storedSuggestions? JSON.parse(storedSuggestions) : []
+      setSuggestions(storedSuggestions)
 
-      // check if we have the map
-      const storedMapString = await AsyncStorage.getItem('mediaMap');
-      let mediaMap = new Map();
 
-      if (storedMapString) {
-        // Convert the stored string back to a Map
-        const storedMapArray = JSON.parse(storedMapString);
-        mediaMap = new Map(storedMapArray);
-        setMedia(mediaMap) // save the existing media in state
-      }
+      // Download latest media for ourself & our matches / suggestions, in parallel.
+      for (const uid of storedSuggestions)  downloadMediaFiles(uid)
+      for (const match of matches)          downloadMediaFiles(match.uid)
       
-
-      // If we don't have this user's media stored
-      if (!mediaMap.has(key) || !directoryExists) {
-
-        // Download media and store in the map 
-        // false so that this media does not expire
-        // false is for self or matches, true for swipes
-        downloadMediaFiles(user._id, false)
-        
-      }
+      downloadMediaFiles(user._id)
+      
     }
 
     // The first update (coming from the database, when prevProfile is null,) we want to use to download the media
     if (profile && !prevProfile.current)
     {
-      getMedia() // ensure we have our own media
+      
+      getMedia() // Download latest profile and image information for all stored users
     }
     
     // Ignores the first update (does not persist), because that is the one coming from the database (would be redundant).
@@ -311,76 +326,56 @@ const saveFileFromBuffer = async (media) => {
   }, [profile])
 
 
-  // Save media map in storage for next time
-  // triggered through downloadMedia(uid), where we want the media for a user
-  // here, we can handle expiry as well.
-  // A new item was just added, so we need to decrease expiry for each item by 1
-  // for any items with expiry 1, delete from the map
-  useEffect(() => {
-    if (media)
-    {
-      async function saveMedia()
-      {
-        // Save the map to async storage for next time
-        const mapArray = Array.from(media.entries()); // Convert the Map to an array
-        await AsyncStorage.setItem('mediaMap', JSON.stringify(mapArray));
-      }
-      
+  // Suggest new user
+  // will grab an ID to suggest, add it to the array, and download their media
+  function suggestUser() {
+    // Send an array of UIDs which we are matched with (mutual is irrelevant) and 
+    // (TODO) also send an array of history (users we should exclude)
+    axios.post(`${BASE_URL}/suggestUser`, {matches: matches.map(match => match.uid), history: suggestions})
+    .then((res) => {
+      console.log("Suggested", res.data)
 
-      saveMedia()
-    }
-    
-    
-  }, [media])
+      // Start a media download for the user
+      downloadMediaFiles(res.data)
 
-  // Shift media:
-  // increases age of all media by 1 such that they all become closer to expiry or expired
-  function shiftMedia() {
-    const updatedMap = new Map(media);
-  
-    for (const key of updatedMap.keys()) {
-      const updatedValue = { ...updatedMap.get(key) }; // Create a shallow copy, since we use .set later. Could just make a deep copy and not use .set, also.
-  
-      if (updatedValue.expiry === 1) {
-        updatedMap.delete(key);
-        // remove the media locally
-        try
-        {
-          RNFS.unlink(`${RNFS.DocumentDirectoryPath}/${id}}`)
-        }
-        catch (error)
-        {
-          console.log("Shift: Error deleting media folder ", key, error)
-        }
-        
+      // Add the user to the suggestion array (side effect will generate more users if needed)
+      setSuggestions(prevSuggestions => {
+        // Create a new array by removing the first item, if the array is at capacity
+        const newArray = prevSuggestions.length >= QUEUE_LEN ? prevSuggestions.slice(1): prevSuggestions;
 
-      } else if (updatedValue.expiry > 1) {
-        // Decrease expiry by 1
-        updatedValue = { ...updatedValue, expiry: updatedValue.expiry - 1 };
-        updatedMap.set(key, updatedValue);
-      }
-    }
+        // Add the new item to the end of the new array
+        newArray.push(res.data);
+        return newArray;
+      });
 
-    
-  
-    // Save the new media with state and to local storage
-    setMedia(updatedMap);
+      // Set with async storage
+      AsyncStorage.setItem('suggestions', JSON.stringify(suggestions))
+
+      // Set the new currentSuggestion to be the user in front of the queue
+      setCurrentSuggestion(media.get(suggestions[0]))
+
+
+    })
+    .catch((e) => {
+      console.log("Error suggesting user", e)
+    })
   }
 
   // Delete media by uid: Aside from expiry, we can delete a media object (user profile and their media ) directly
+  // used when swiping left, or blocking someone, for example
   function deleteMedia(uid) {
     // Shallow copy of the map
     const updatedMap = new Map(media);
   
-    updatedMap.delete(key);
+    updatedMap.delete(uid);
     // remove the media locally
     try
     {
-      RNFS.unlink(`${RNFS.DocumentDirectoryPath}/${id}}`)
+      RNFS.unlink(`${RNFS.DocumentDirectoryPath}/${uid}}`)
     }
     catch (error)
     {
-      console.log("Error deleting media folder ", key, error)
+      console.log("Error deleting media folder", uid, error)
     }
 
     // Save the new media with state and to local storage
@@ -540,17 +535,42 @@ const saveFileFromBuffer = async (media) => {
         setShowSplash(false)
       }
     })
-    
+  }
 
-    // Initialize preferences
-    // Prefs are to be saved after modifying one: set state variable and store
-    AsyncStorage.getItem('preferences').then(value => {
-      if(value)
-        setPreferences(JSON.parse(value))
+// We swiped on a user.
+function swiped(right)
+{
+  if (right)
+  {
+    // move suggestions[0] to matches, useEffect should update in DB.
+    // we do not need to downloadMedia, it is already downloaded.
+    
+    // Is it mutual?
+    axios.post(`${BASE_URL}/matchUser`, {source: user._id, dest: suggestions[0]})
+    .then((res) => {
+      let mutual = res.data
+      // We don't need to persist to DB here, because we do it in this /matchUser api call.
+      setMatches([...matches, {uid: suggestions[0], mutual: mutual}])
+
+      if (mutual)
+      {
+        // play fun effect
+        // ...
+      }
+      
     })
 
-
   }
+  else
+  {
+    // delete the media for this user
+    deleteMedia(suggestions[0])
+  }
+
+  // Suggest a new user, which will shift the suggestions as well
+  suggestUser()
+}
+
 
 // middleware Login from login screen: Must set token because it definitely is not set
 function loggedIn(token, new_user)
@@ -580,10 +600,14 @@ function logIn(token)
     setUser({ _id, email});
 
     setFilters(res.data.user.filters)
-    setProfile(res.data.user.profile)
+    setMatches(res.data.user.matches)
 
     // if we don't have a profile object, user has not yet been setup
     setSetupScreen(!res.data.user.profile)
+
+    // Do this last, because it will trigger the media downloads, and we need our matches and filters
+    // ready to go for downloading media and for generating suggestions.
+    setProfile(res.data.user.profile)
 
     
 
@@ -713,7 +737,7 @@ if (showSplash)
     return (
       <>
           {/* Navigation is the actual Screen which gets displayed based on the tab cosen */}
-          <Navigation user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
+          <Navigation swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
           
           
           {/* Help Modal */}

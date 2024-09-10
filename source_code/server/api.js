@@ -252,6 +252,53 @@ pingUrl();
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Match another user
+router.post('/matchUser', async (req, res) => {
+  // check if the destination has matched the source
+  User.findById(
+    { _id: req.body.dest }, // Find the user we are trying to match
+    { projection: { matches: 1, _id: 0 } } // we don't need _id, it is included by default.
+  )
+  .then((user) => {
+    // we found the user we want to match with
+    // return whether or not the other user matched us as well.
+    const mutual = !!user.matches.find(match => match.uid === req.body.source)
+
+    // Update the swiping user's matches database with this user,
+    // and whether or not we are currently a mutual match.
+    User.findByIdAndUpdate(
+      req.body.source,
+      { $push: { matches: newMatch } },
+    );
+
+    // Return the status of whether we are a mutual match
+    res.send(mutual)
+  })
+  .catch((e) => {
+    res.status(500).send(e)
+  })
+})
+
+// Suggest a user to match with
+router.post('/suggestUser', async (req, res) => {
+  // we need to return a uid,
+  // for now, we can pick a random user who is not yet in our suggestion history (async storage ?), or in our matches
+  let matches = req.body.matches
+  let history = req.body.history
+
+  // for now, just pick a random user from the database.
+  const users = await User.aggregate([{ $sample: { size: 1 } }]);
+
+  // Check if a user was found
+  if (users.length > 0) {
+    res.send(users[0]._id)
+    return;
+  } 
+  
+  // There were no users found
+  res.status(404).send("No users found")
+})
+
 router.post('/downloadMedia', async (req,res) => {
   let megaFolder = null;
   for (const node of mega.root.children) {
@@ -278,6 +325,7 @@ router.post('/downloadMedia', async (req,res) => {
 
   // send the user's profile too, incase its some other user
   let profile = null;
+
 
   User.findById({_id: req.body.uid })
   .then((user) => {
@@ -324,14 +372,18 @@ router.post('/uploadMedia', upload.single('file'), async (req, res) => {
     }
 
     const file = await megaFolder.upload({ name: fileName }, compressedFileBuffer).complete;
-    const link = await file.link();
+    file.link(); // see if we can delete this, or if we need to await this
 
     // Clean up local temp files
     fs.unlinkSync(filePath);
     fs.unlinkSync(compressedFilePath);
 
     // Return the Mega file URL
-    res.send(link);
+    // No longer returning this because it is not direct downloadable, encrypted so useless
+    //res.send(link);
+
+    res.send();
+    
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to upload file to Mega' });
