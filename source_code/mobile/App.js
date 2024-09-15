@@ -86,8 +86,8 @@ export default function App() {
   // Update media item, replacing with new if existing
   async function updateMedia(index, new_media)
   {
-    // Check if we're trying to replace media
-    if (index < media.size)
+    // Check if we're trying to replace media 
+    if (index < (media.get(user._id)? media.get(user._id).media.length : 0))
     {
       // delete the existing media at index
       await axios.post(`${BASE_URL}/deleteMedia`, {uid: user._id, index: index})

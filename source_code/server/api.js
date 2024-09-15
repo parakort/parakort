@@ -311,7 +311,8 @@ router.post('/suggestUser', async (req, res) => {
 })
 
 // Delete media at a given index
-router.post('/deleteMedia', (req,res) => {
+router.post('/deleteMedia', async (req,res) => {
+  console.log("deleitng", req.body.index)
   let megaFolder = null;
   for (const node of mega.root.children) {
     if (node.name === req.body.uid && node.directory) {
@@ -326,8 +327,11 @@ router.post('/deleteMedia', (req,res) => {
     res.status(404).send("No user media exists")
     return
   }
+  
 
-  megaFolder.children[req.body.index].delete(true)
+  let resp = await megaFolder.children[req.body.index].delete(true)
+  console.log("deletion response:", resp)
+  res.send()
 })
 
 router.post('/downloadMedia', async (req,res) => {
@@ -352,7 +356,7 @@ router.post('/downloadMedia', async (req,res) => {
   let buffers = []
   
   for (const item of megaFolder.children) {
-    const type = item.name.includes(".PNG") ? 'Image' : "Video"
+    const type = item.name.includes(".jpg") ? 'Image' : "Video"
     //const file = File.fromURL(item.shareURL)
     const data = await item.downloadBuffer()
     buffers.push({name: item.name, type: type, data: Buffer.from(data).toString('base64')})
@@ -381,6 +385,10 @@ router.post('/uploadMedia', upload.single('file'), async (req, res) => {
   const compressedFilePath = `tempUploads/compressed-${fileName}`;
 
   try {
+
+    if (filePath.includes(".jpg"))
+    {
+
     // Compress the image using Sharp
     await sharp(filePath)
       .resize(800) // Resize the image
@@ -388,6 +396,8 @@ router.post('/uploadMedia', upload.single('file'), async (req, res) => {
 
     // Upload the compressed file to Mega
     const compressedFileBuffer = fs.readFileSync(compressedFilePath);
+    }
+      
 
     let megaFolder;
 
