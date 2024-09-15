@@ -385,8 +385,9 @@ router.post('/uploadMedia', upload.single('file'), async (req, res) => {
   const compressedFilePath = `tempUploads/compressed-${fileName}`;
 
   try {
+    const isImg = filePath.includes(".jpg")
 
-    if (filePath.includes(".jpg"))
+    if (isImg)
     {
 
     // Compress the image using Sharp
@@ -394,9 +395,9 @@ router.post('/uploadMedia', upload.single('file'), async (req, res) => {
       .resize(800) // Resize the image
       .toFile(compressedFilePath);
 
-    // Upload the compressed file to Mega
-    const compressedFileBuffer = fs.readFileSync(compressedFilePath);
+    
     }
+    const compressedFileBuffer = fs.readFileSync(isImg? compressedFilePath : filePath);
       
 
     let megaFolder;
@@ -418,11 +419,11 @@ router.post('/uploadMedia', upload.single('file'), async (req, res) => {
       megaFolder = await mega.mkdir(req.body.uid);
     }
 
-    const file = await megaFolder.upload({ name: fileName }, compressedFileBuffer).complete;
+    // Upload compressed file to mega
+    await megaFolder.upload({ name: fileName }, compressedFileBuffer).complete;
   
     // Clean up local temp files
-    fs.unlinkSync(filePath);
-    fs.unlinkSync(compressedFilePath);
+    fs.unlinkSync(isImg? compressedFilePath : filePath);
 
     // Return the Mega file URL
     // No longer returning this because it is not direct downloadable, encrypted so useless
