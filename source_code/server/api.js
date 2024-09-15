@@ -257,24 +257,35 @@ router.post('/matchUser', async (req, res) => {
   // check if the destination has matched the source
   User.findById(
     { _id: req.body.dest }, // Find the user we are trying to match
-    { projection: { matches: 1, _id: 0 } } // we don't need _id, it is included by default.
+    { matches: 1, _id: 0} 
   )
-  .then((user) => {
+  .then(async (user) => {
     // we found the user we want to match with
     // return whether or not the other user matched us as well.
     const mutual = !!user.matches.find(match => match.uid === req.body.source)
+    
+
+
+    // Return the status of whether we are a mutual match
+    res.send(mutual)
 
     // Update the swiping user's matches database with this user,
     // and whether or not we are currently a mutual match.
     User.findByIdAndUpdate(
       req.body.source,
-      { $push: { matches: newMatch } },
+      { $push: { matches: {uid: req.body.dest, mutual: mutual} } },
     );
 
-    // Return the status of whether we are a mutual match
-    res.send(mutual)
+
+    // If this match became mutual, update the other user's existing match object to be mutual, and perform notifications on frontend as arespult.
+    if (mutual)
+      User.updateOne(
+        { _id: req.body.dest, 'matches.uid': req.body.source },  // Query to find the document and the specific UID
+        { $set: { 'matches.$.mutual': true } }     // Update operation to set `mutual` to true
+      );
   })
   .catch((e) => {
+    console.log("failed to match user", e)
     res.status(500).send(e)
   })
 })

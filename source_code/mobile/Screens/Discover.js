@@ -6,24 +6,7 @@ import config from "../app.json"
 
 
 
-let examples = [{
-  name: "Rory McIlroy",
-  age: 32,
-  description: "Passionate golfer seeking a dedicated teammate to elevate our game! Whether you're an experienced player or enthusiastic amateur, let's join forces. I value skill, strategy, and mutual support. If you’re eager to improve and enjoy the game together, let’s connect and make every round count!",
-  image: "https://www.liveabout.com/thmb/0ZPzYOS9O7HHdiq6KdMmEFcossI=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/mcilroy-rory-18-5acd04aca474be0036f0d0d7.jpg",
-}, 
-{
-  name: "Sierra Brooks",
-  age: 21,
-  description: "Hey! I’m Sierra Brooks, a dedicated golfer looking for a friendly opponent to hit the greens with. I love the challenge of a good game and the camaraderie that comes with it. Whether you're a seasoned player or a passionate newbie, let's tee off and enjoy the game together! 🏌️‍♀️⛳",
-  image: "https://images.prestigeonline.com/wp-content/uploads/sites/6/2023/04/10144634/featured_michelle-wie-Thananuwat-Srirasant-Getty-Images-LPGA-copy.jpeg"
-}
-]
-
-
 const SwipeableCard = (props) => {
-  // this is temporary, we will really use props.suggestions[0]
-const [currentSuggestion, setCurrentSuggestion] = useState(examples[0])
 
 
   const [translateX] = useState(new Animated.Value(0));
@@ -33,25 +16,19 @@ const [currentSuggestion, setCurrentSuggestion] = useState(examples[0])
   const resetTranslateAnimation = Animated.timing(translateX, {
     toValue: 0,
     duration: 0,
-    useNativeDriver: false,
+    useNativeDriver: true,
   });
 
   const fadeInAnimation = Animated.timing(opacity, {
     toValue: 1,
-    duration: 150,
-    useNativeDriver: false,
+    duration: 140,
+    useNativeDriver: true,
   });
 
-  useEffect(() => {
-    // Preload images for both examples
-    examples.forEach((example) => {
-      Image.prefetch(example.image);
-    });
-  }, []);
 
   const onGestureEvent = Animated.event(
     [{ nativeEvent: { translationX: translateX } }],
-    { useNativeDriver: false }
+    { useNativeDriver: true }
   );
 
   const rotateCard = translateX.interpolate({
@@ -64,19 +41,19 @@ const [currentSuggestion, setCurrentSuggestion] = useState(examples[0])
     if (translateX._value <= SWIPE_THRESH && translateX._value >= -SWIPE_THRESH) {
       Animated.spring(translateX, {
         toValue: 0,
-        useNativeDriver: false,
+        useNativeDriver: true,
       }).start();
     } else if (translateX._value > 0) {
       Animated.timing(translateX, {
         toValue: 500,
         duration: 300,
-        useNativeDriver: false,
+        useNativeDriver: true,
       }).start(() => replaceCard(true));
     } else if (translateX._value < 0) {
       Animated.timing(translateX, {
         toValue: -500,
         duration: 300,
-        useNativeDriver: false,
+        useNativeDriver: true,
       }).start(() => replaceCard(false));
     }
   };
@@ -84,24 +61,33 @@ const [currentSuggestion, setCurrentSuggestion] = useState(examples[0])
   // Callback for swiping, match if right
   function swipe(right)
   {
-    // this is temporary
-    setCurrentSuggestion(currentSuggestion.age < 30 ? examples[0] : examples[1])
-    
     props.swiped(right)
   }
 
   // called when swiping.
   const replaceCard = (right) => {
     
-    //opacity._value = 0;
-    resetTranslateAnimation.start();
+    opacity.setValue(0);
+
+    Animated.sequence([
+      // First animation: reset translation
+      resetTranslateAnimation,
+      // Second animation: fade back in
+      fadeInAnimation,
+    ]).start(); // Start the sequence
+
+    //resetTranslateAnimation.start();
 
     swipe(right);
+    
 
   };
 
   const handleImageLoad = () => {
-    fadeInAnimation.start();
+    // I now instead fade in each swipe
+
+    //fadeInAnimation.start();
+    //console.log("image loaded")
   };
 
   return (
@@ -123,11 +109,15 @@ const [currentSuggestion, setCurrentSuggestion] = useState(examples[0])
             ]}
           >
             <View style={styles.imageContainer}>
+            {props.currentSuggestion?.media[0]?.uri ? (
               <Image
-                source={{ uri: props.currentSuggestion?.media[0].uri }}
+                source={{ uri: props.currentSuggestion.media[0].uri }}
                 style={styles.image}
-                onLoad={handleImageLoad} // Trigger when image loads: then we can animate
+                onLoad={handleImageLoad}
               />
+            ) : (
+              <Text>Loading Image...</Text>
+            )}
               <Text style={styles.name}>{props.currentSuggestion?.profile.firstName}</Text>
             </View>
             <View style={styles.descriptionContainer}>

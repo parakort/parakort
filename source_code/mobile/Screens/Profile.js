@@ -126,7 +126,7 @@ const Profile = (props) => {
           {/* Profile pic and name */}
           <View style={styles.imagecontainer}>
             <Image
-              source={{ uri: props.media? props.media?.get(props.user._id).media[0].uri : "" }}
+              source={{ uri: props.media? props.media?.get(props.user._id)?.media[0].uri : "" }}
               style={[
                 styles.image, 
                 {

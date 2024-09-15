@@ -226,6 +226,8 @@ const updateProfile = (key, newValue) => {
       const updatedMap = new Map(media);
       updatedMap.set(user._id, userMedia)
       setMedia(updatedMap)
+
+      return userMedia
       
 
     } catch (error) {
@@ -301,9 +303,13 @@ const saveFileFromBuffer = async (media) => {
       storedSuggestions = storedSuggestions? JSON.parse(storedSuggestions) : []
       setSuggestions(storedSuggestions)
 
+      
+      // Download the first suggestion first so we can load the media asap
+      if (storedSuggestions.length) setCurrentSuggestion(await downloadMediaFiles(storedSuggestions[0]))
+      
 
       // Download latest media for ourself & our matches / suggestions, in parallel.
-      for (const uid of storedSuggestions)  downloadMediaFiles(uid)
+      for (const uid of storedSuggestions.slice(1))  downloadMediaFiles(uid)
       for (const match of matches)          downloadMediaFiles(match.uid)
       
       downloadMediaFiles(user._id)
@@ -325,6 +331,24 @@ const saveFileFromBuffer = async (media) => {
     
   }, [profile])
 
+  const deleteAllFiles = async () => {
+    try {
+      // Directory path, e.g., RNFS.DocumentDirectoryPath or any valid directory path
+      const directoryPath = RNFS.DocumentDirectoryPath;
+
+      // List all files in the directory
+      const files = await RNFS.readDir(directoryPath);
+
+      // Delete each file
+      for (const file of files) {
+        await RNFS.unlink(file.path);
+      }
+
+      console.log("deleted all local files")
+    } catch (err) {
+      console.log(err)
+    }
+  };
 
   // Suggest new user
   // will grab an ID to suggest, add it to the array, and download their media
@@ -363,7 +387,7 @@ const saveFileFromBuffer = async (media) => {
 
   // Delete media by uid: Aside from expiry, we can delete a media object (user profile and their media ) directly
   // used when swiping left, or blocking someone, for example
-  function deleteMedia(uid) {
+  function deleteMedia(uid) { 
     // Shallow copy of the map
     const updatedMap = new Map(media);
   
@@ -371,12 +395,13 @@ const saveFileFromBuffer = async (media) => {
     // remove the media locally
     try
     {
-      RNFS.unlink(`${RNFS.DocumentDirectoryPath}/${uid}}`)
+      RNFS.unlink(`${RNFS.DocumentDirectoryPath}/${uid}`)
     }
     catch (error)
     {
       console.log("Error deleting media folder", uid, error)
     }
+    
 
     // Save the new media with state and to local storage
     setMedia(updatedMap);
@@ -558,6 +583,9 @@ function swiped(right)
         // ...
       }
       
+    })
+    .catch((e) => {
+      console.log("Error matching user:",e)
     })
 
   }
