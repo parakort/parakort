@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Platform, View, Text, StyleSheet, TextInput, TouchableWithoutFeedback, Keyboard, Switch, TouchableOpacity, Alert, SafeAreaView, Image, Dimensions } from 'react-native';
+import { Platform, View, Text, StyleSheet, TextInput, TouchableWithoutFeedback, Keyboard, Switch, TouchableOpacity, Alert, SafeAreaView, Image, Dimensions, KeyboardAvoidingView } from 'react-native';
 import config from '../app.json'
+import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 const Profile = (props) => {
   {
@@ -77,6 +80,33 @@ const Profile = (props) => {
       
     };
 
+    const requestPermission = async () => {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert("Permission Denied", "You need to grant media access permission.");
+        return false;
+      }
+      await AsyncStorage.setItem('mediaPermission', status);
+      return true;
+    };
+  
+    const pickMedia = async (index) => {
+      const permission = await AsyncStorage.getItem('mediaPermission') || await requestPermission();
+      if (permission) {
+        let result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: index ? ImagePicker.MediaTypeOptions.All : ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 1,
+          videoMaxDuration: 30,
+        });
+  
+        if (!result.canceled) {
+          props.updateMedia(index, result.assets[0])
+        }
+      }
+    };
+
     
     // Show delete page if deleting
     if (delAccount)
@@ -127,17 +157,58 @@ const Profile = (props) => {
           <View style={styles.imagecontainer}>
             <Image
               source={{ uri: props.media? props.media?.get(props.user._id)?.media[0].uri : "" }}
-              style={[
-                styles.image, 
-                {
+              style={{
                   width: imageSize,
                   height: imageSize,
                   borderRadius: borderRadius,
-                }
-              ]}
+              }}
               resizeMode="cover"
             />
-            <Text>{props.profile.firstName}</Text>
+            <Text style = {{fontSize: 20, color: config.app.theme.creme}}>{props.profile.firstName}</Text>
+          </View>
+
+          <View>
+
+            <KeyboardAvoidingView>
+                  <Text style={styles.label}>Modify bio</Text>
+                  <TextInput
+                  style={[styles.input, styles.bioInput]}
+                  placeholder="Your bio"
+                  value={props.profile.bio}
+                  onChangeText={(text) => handleInputChange('bio', text)}
+                  maxLength={300}
+                  multiline={false}
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                  />
+              </KeyboardAvoidingView>
+
+              <View style={styles.mediaContainer}>
+                <Text style={styles.label}>Modify Images</Text>
+                <View style={styles.mediaGrid}>
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        styles.mediaBox,
+                        props.media?.get(props.user._id)?.media[index] && styles.mediaFilled,
+                      ]}
+                      onPress={() => {pickMedia(index)}}
+                      disabled={index > (props.media?.get(props.user._id)?.media ? props.media?.get(props.user._id)?.media.length : 0)}
+                    >
+                      {props.media?.get(props.user._id)?.media[index] ? (
+                        <Image
+                          source={{ uri: props.media?.get(props.user._id)?.media[index].uri }}
+                          style={styles.mediaPreview}
+                        />
+                      ) : (
+                        <Text style={styles.plusSign}>+</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            
           </View>
 
           {/* <View style={styles.preferencesContainer}>
@@ -176,23 +247,59 @@ const Profile = (props) => {
 };
 
 const styles = StyleSheet.create({
+  mediaContainer: {
+    marginTop: 20,
+  },
+  mediaGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  mediaBox: {
+    width: '30%',
+    height: 100,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mediaFilled: {
+    borderWidth: 2,
+    borderColor: config.app.theme.blue,
+  },
+  plusSign: {
+    fontSize: 24,
+    color: '#808080',
+  },
+  mediaPreview: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  label: {
+    fontSize: 18,
+    fontWeight: '200',
+    margin: 5,
+  },
+  input: {
+    borderColor: config.app.theme.grey,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 20,
+    backgroundColor: config.app.theme.creme
+  },
+  bioInput: {
+    textAlignVertical: 'top',
+  },
   imagecontainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    flex: 1,
-  },
-  image: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-    //elevation: 5,
   },
 
   container: {
     flex: 1,
-    padding: 10,
-    //justifyContent: 'space-between', // Pushes content and buttons to the top and bottom, respectively
+    margin: 10,
+    justifyContent: 'space-between', // Pushes content and buttons to the top and bottom, respectively
   },
   logoText: {
     fontSize: Platform.OS === 'ios' && Platform.isPad ? 60 : 40,

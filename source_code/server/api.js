@@ -310,8 +310,32 @@ router.post('/suggestUser', async (req, res) => {
   res.status(404).send("No users found")
 })
 
+// Delete media at a given index
+router.post('/deleteMedia', (req,res) => {
+  let megaFolder = null;
+  for (const node of mega.root.children) {
+    if (node.name === req.body.uid && node.directory) {
+      megaFolder = node;
+      break; // Break out of the loop once the folder is found
+    }
+  }
+
+  // This should not happen
+  if (!megaFolder)
+  {
+    res.status(404).send("No user media exists")
+    return
+  }
+
+  megaFolder.children[req.body.index].delete(true)
+})
+
 router.post('/downloadMedia', async (req,res) => {
   let megaFolder = null;
+  if (!mega.root.children)
+  {
+    res.status(404).send("No users exist")
+  }
   for (const node of mega.root.children) {
     if (node.name === req.body.uid && node.directory) {
       megaFolder = node;
@@ -328,9 +352,9 @@ router.post('/downloadMedia', async (req,res) => {
   let buffers = []
   
   for (const item of megaFolder.children) {
-    const type = item.name.includes(".JPG") ? 'Image' : "Video"
-    const file = File.fromURL(item.shareURL)
-    const data = await file.downloadBuffer()
+    const type = item.name.includes(".PNG") ? 'Image' : "Video"
+    //const file = File.fromURL(item.shareURL)
+    const data = await item.downloadBuffer()
     buffers.push({name: item.name, type: type, data: Buffer.from(data).toString('base64')})
   }
 
@@ -367,24 +391,25 @@ router.post('/uploadMedia', upload.single('file'), async (req, res) => {
 
     let megaFolder;
 
-    if (req.body.new) {
-      megaFolder = await mega.mkdir(req.body.uid);
-    } else {
-      for (const node of mega.root.children) {
-        if (node.name === req.body.uid && node.directory) {
-          megaFolder = node;
-          break; // Break out of the loop once the folder is found
-        }
+    if (!mega.root.children)
+    {
+      await mega.mkdir(req.body.uid);
+    }
+    
+    for (const node of mega.root.children) {
+      if (node.name === req.body.uid && node.directory) {
+        megaFolder = node;
+        break; // Break out of the loop once the folder is found
       }
     }
+    
 
     if (!megaFolder) {
-      return res.status(404).json({ error: 'Folder not found' });
+      megaFolder = await mega.mkdir(req.body.uid);
     }
 
     const file = await megaFolder.upload({ name: fileName }, compressedFileBuffer).complete;
-    file.link(); // see if we can delete this, or if we need to await this
-
+  
     // Clean up local temp files
     fs.unlinkSync(filePath);
     fs.unlinkSync(compressedFilePath);

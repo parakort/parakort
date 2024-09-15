@@ -55,7 +55,7 @@ export default function App() {
   const [profile, setProfile] = useState(null)
 
   // Where user data is stored
-  const [media, setMedia] = useState(null)              // Links to local files of our matches, fetched synchronously
+  const [media, setMedia] = useState(new Map())              // Links to local files of our matches, fetched synchronously
   const [matches, setMatches] = useState(null)          // UID array of our matched users
   const [suggestions, setSuggestions] = useState(null)  // UID array of suggested users
 
@@ -81,6 +81,30 @@ export default function App() {
   // finished setup and tutorial: Show the app content
   function finishedSetup() {
     setSetupScreen(false)
+  }
+
+  // Update media item, replacing with new if existing
+  async function updateMedia(index, new_media)
+  {
+    // Check if we're trying to replace media
+    if (index < media.size)
+    {
+      // delete the existing media at index
+      await axios.post(`${BASE_URL}/deleteMedia`, {uid: user._id, index: index})
+      .then(async (res) => {
+
+      })
+      .catch((e) =>{
+        console.log("Error deleting media file:", e)
+      })
+    }
+
+    // Upload the new media
+    await uploadMedia([new_media])
+
+    // Download the latest media locally, which will show the new media item on the profile page
+    downloadMediaFiles(user._id)
+
   }
 
   // Media to cloud links
@@ -185,7 +209,6 @@ const updateProfile = (key, newValue) => {
   // Deletes existing content if it exists
   // we call this if we want to forecefully get the user's latest pictures
   const downloadMediaFiles = async (uid) => {
-    //console.log("downloading media for", uid)
     // Define a path where this user's media is to be stored
     const directoryPath = `${RNFS.DocumentDirectoryPath}/${uid}`;
   
@@ -428,10 +451,6 @@ const saveFileFromBuffer = async (media) => {
     })
     setTextInputValue('');
   };
-
-
-
-
 
 
   const handleAppStateChange = async newState => {
@@ -765,7 +784,7 @@ if (showSplash)
     return (
       <>
           {/* Navigation is the actual Screen which gets displayed based on the tab cosen */}
-          <Navigation swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
+          <Navigation updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
           
           
           {/* Help Modal */}

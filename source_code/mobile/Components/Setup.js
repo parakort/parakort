@@ -93,11 +93,11 @@ const Setup = (props) => {
     return true;
   };
 
-  const pickMedia = async () => {
+  const pickMedia = async (index) => {
     const permission = await AsyncStorage.getItem('mediaPermission') || await requestPermission();
     if (permission) {
       let result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        mediaTypes: index ? ImagePicker.MediaTypeOptions.All : ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 1,
@@ -125,8 +125,8 @@ const Setup = (props) => {
                 styles.mediaBox,
                 userDetails.media[index] && styles.mediaFilled,
               ]}
-              onPress={pickMedia}
-              disabled={!!userDetails.media[index]}
+              onPress={() => {pickMedia(index)}}
+              disabled={index > (props.media?.get(props.user._id)?.media ? props.media?.get(props.user._id)?.media.length : 0)}
             >
               {userDetails.media[index] ? (
                 <Image
