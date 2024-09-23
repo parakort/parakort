@@ -327,6 +327,7 @@ router.post('/deleteMedia', async (req,res) => {
     return
   }
   
+  try{
   // Find the image and delete it
   for (const media of megaFolder.children)
   {
@@ -344,7 +345,12 @@ router.post('/deleteMedia', async (req,res) => {
       media.rename(String(parseInt(media.name.charAt(0)) - 1) + media.name.substring(1))
     }
   }
-
+  }
+  catch (e) {
+    res.status(404).send("No user media exists")
+    return
+  }
+  
   // We now search for the image to delete by name (named as index)
   //megaFolder.children[req.body.index].delete(true)
   res.send()
@@ -370,18 +376,24 @@ router.post('/downloadMedia', async (req,res) => {
   }
 
   let buffers = []
+
+  try {
   
-  for (const item of megaFolder.children) {
-    const type = (item.name.toLowerCase().includes(".jpg") || item.name.toLowerCase().includes(".png"))? 'Image' : "Video"
-    //const file = File.fromURL(item.shareURL)
-    const data = await item.downloadBuffer()
+    for (const item of megaFolder.children) {
+      const type = (item.name.toLowerCase().includes(".jpg") || item.name.toLowerCase().includes(".png"))? 'Image' : "Video"
+      //const file = File.fromURL(item.shareURL)
+      const data = await item.downloadBuffer()
 
-    // Insert to the array at particular indeces based on positional uploading.
-    // basically sorts the array to the user's desired order despite chronology
-    buffers[item.name.substring(0, 1)] = {name: item.name.substring(1), type: type, data: Buffer.from(data).toString('base64')}
+      // Insert to the array at particular indeces based on positional uploading.
+      // basically sorts the array to the user's desired order despite chronology
+      buffers[item.name.substring(0, 1)] = {name: item.name.substring(1), type: type, data: Buffer.from(data).toString('base64')}
 
+    }
   }
-  
+  catch (e) {
+    res.status(404).send("No user media exists")
+    return
+  }
 
   // send the user's profile too, incase its some other user
   let profile = null;

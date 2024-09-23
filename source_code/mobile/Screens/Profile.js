@@ -19,7 +19,7 @@ const Profile = (props) => {
     // This is a cosmetic copy of our profile pics.
     // Do not change this directly - it is changed by the Media component
     // to display changes immediately, and is not persisted.
-    const [media, setMedia] = useState(props.media?.get(props.user._id)?.media)
+    const [media, setMedia] = useState(props.media.get(props.user._id)? props.media.get(props.user._id).media : [])
 
     useEffect(() => {
       const keyboardDidShowListener = Keyboard.addListener(
@@ -86,6 +86,17 @@ const Profile = (props) => {
       
     };
 
+    // Called when we delete a media item from the media component
+    function onRemoveMedia(index)
+    {
+      // Cosmetic (immediate)
+      setMedia((prevItems) => prevItems.filter((_, i) => i !== index));
+
+      // This is the grand effect, not just cosmetic
+      // (the actual deletion)
+      props.updateMedia(index)
+    }
+
     // Called when media component for the Profile gets a new piece of media
     function onSubmitMedia(index, new_media)
     {
@@ -150,7 +161,7 @@ const Profile = (props) => {
           {/* Profile pic and name */}
           <View style={styles.imagecontainer}>
             <Image
-              source={{ uri: media[0]? media[0].uri : "" }}
+              source={media[0] ? { uri: media[0].uri } : require('../assets/notfound.jpg')}
               style={{
                   width: imageSize,
                   height: imageSize,
@@ -180,7 +191,7 @@ const Profile = (props) => {
 
               <View style={styles.mediaContainer}>
                 <Text style={styles.label}>Modify Images</Text>
-                <Media media = {media} onSubmitMedia = {onSubmitMedia}></Media>
+                <Media media = {media} onSubmitMedia = {onSubmitMedia} onRemoveMedia = {onRemoveMedia}></Media>
               </View>
             
           </View>

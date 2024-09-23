@@ -1,16 +1,10 @@
-import React, { useState } from 'react';
-import { SafeAreaView, View, Text, TouchableOpacity, TextInput, StyleSheet, Image, Animated, Keyboard, Alert } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import config from "../app.json";
 
-const Media= (props) => {
-
-    // Array of media to display
-    // Defaults to the provided media source, the array which we read / write to
-    // This is just a cosmetic copy to display instant feedback
-
-
+const Media = (props) => {
   const requestPermission = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -25,58 +19,67 @@ const Media= (props) => {
     const permission = await AsyncStorage.getItem('mediaPermission') || await requestPermission();
     if (permission) {
       let result = await ImagePicker.launchImageLibraryAsync({
-
-        // disabled videos
-        mediaTypes: ImagePicker.MediaTypeOptions.Images, //index ? ImagePicker.MediaTypeOptions.All : ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 1,
         videoMaxDuration: 5,
-
       });
 
-      // Append index to name 
-      result.assets[0].fileName = String(index) + result.assets[0].fileName
+      result.assets[0].fileName = String(index) + result.assets[0].fileName;
 
       if (!result.canceled) {
-       
-        // Use the prop callback to decide what to do once we choose an image
-        props.onSubmitMedia(index, result.assets[0])
-
+        props.onSubmitMedia(index, result.assets[0]);
       }
     }
   };
 
-    return (
-      <View style={styles.mediaContainer}>
-        <View style={styles.mediaGrid}>
-          {Array.from({ length: 3 }).map((_, index) => (
+  const handleRemoveMedia = (index) => {
+    props.onRemoveMedia(index);
+  };
+
+  return (
+    <View style={styles.mediaContainer}>
+      <View style={styles.mediaGrid}>
+        {Array.from({ length: 3 }).map((_, index) => (
+          <View key={index} style={styles.mediaBoxContainer}>
             <TouchableOpacity
-              key={index}
               style={[
                 styles.mediaBox,
                 props.media[index] && styles.mediaFilled,
+                // Below line can make a new style for inaccessible media buttons
+                // index > (props.media ? props.media.length : 0) && styles.mediaDisabled
               ]}
-              onPress={() => {pickMedia(index)}}
-              disabled={index > (props.media? props.media.length : 0)}
+              onPress={() => { pickMedia(index); }}
+              disabled={index > (props.media ? props.media.length : 0)}
             >
+                {/* Show the image for all images */}
               {props.media[index] ? (
                 <Image
                   source={{ uri: props.media[index].uri }}
                   style={styles.mediaPreview}
                 />
+                // Show a plus sign for the box which is for adding the next media item
               ) : (
-                <Text style={styles.plusSign}>+</Text>
+                !(index > (props.media ? props.media.length : 0)) && <Text style={styles.plusSign}>+</Text>
+              )}
+              {(index > 0 && props.media[index]) && (
+                <TouchableOpacity
+                  style={styles.removeButton}
+                  onPress={() => handleRemoveMedia(index)}
+                >
+                  <Text style={styles.removeText}>−</Text>
+                </TouchableOpacity>
               )}
             </TouchableOpacity>
-          ))}
-        </View>
+          </View>
+        ))}
       </View>
-    );
-  }
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
-  
   mediaContainer: {
     marginTop: 20,
   },
@@ -84,17 +87,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  mediaBox: {
+  mediaBoxContainer: {
+    position: 'relative',
     width: '30%',
+  },
+  mediaBox: {
     height: 100,
     backgroundColor: '#f0f0f0',
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  mediaDisabled: {
+    backgroundColor: '#d1d1d1',
+  },
   mediaFilled: {
     borderWidth: 2,
-    borderColor: config.app.theme.blue,
+    borderColor: config.app.theme.creme,
   },
   plusSign: {
     fontSize: 24,
@@ -104,7 +113,24 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 8,
-  }
+    top: 0,
+    left: 0,
+  },
+  removeButton: {
+    position: 'absolute',
+    top: -10,
+    right: -10,
+    backgroundColor: config.app.theme.red,
+    borderRadius: 50,
+    width: 25,
+    height: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeText: {
+    color: 'white',
+    fontSize: 20,
+  },
 });
 
 export default Media;

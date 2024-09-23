@@ -82,6 +82,18 @@ const Setup = (props) => {
     setUserDetails({ ...userDetails, [field]: value });
   };
 
+  // We deleted media item from media component
+  function onRemoveMedia(index)
+  {
+    setUserDetails((prevState) => ({
+      ...prevState,
+      media: [
+        ...prevState.media.slice(0, index), 
+        ...prevState.media.slice(index + 1)
+      ],
+    }));
+  }
+
   // We submitted media from the Media component
   // For setup, we just update the media part of our user details (to be profile)
   function onSubmitMedia(index, new_media)
@@ -197,7 +209,7 @@ const Setup = (props) => {
 
             <View style={styles.mediaContainer}>
               <Text style={styles.mediaPrompt}>Now let's see that pretty face!</Text>
-              <Media media = {userDetails.media} onSubmitMedia = {onSubmitMedia}></Media>
+              <Media media = {userDetails.media} onSubmitMedia = {onSubmitMedia} onRemoveMedia = {onRemoveMedia}></Media>
             </View>
           </View>
         );
