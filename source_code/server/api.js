@@ -312,7 +312,6 @@ router.post('/suggestUser', async (req, res) => {
 
 // Delete media at a given index
 router.post('/deleteMedia', async (req,res) => {
-  console.log("deleitng", req.body.index)
   let megaFolder = null;
   for (const node of mega.root.children) {
     if (node.name === req.body.uid && node.directory) {
@@ -328,9 +327,26 @@ router.post('/deleteMedia', async (req,res) => {
     return
   }
   
+  // Find the image and delete it
+  for (const media of megaFolder.children)
+  {
+    // If we find the file, delete it
+    // if we aren't shfiting, we can exit the loop (no need to rename other files)
+    if (media.name.charAt(0) == req.body.index)
+    {
+      media.delete(true)
+      if (!req.body.shift) break
+    }
+    // This is not the file to delete, but we must rename all other files.
+    // anything greater than the index we deleted must be decremented
+    else if (req.body.shift && media.name.charAt(0) > req.body.index)
+    {
+      media.rename(String(parseInt(media.name.charAt(0)) - 1) + media.name.substring(1))
+    }
+  }
 
-  let resp = await megaFolder.children[req.body.index].delete(true)
-  console.log("deletion response:", resp)
+  // We now search for the image to delete by name (named as index)
+  //megaFolder.children[req.body.index].delete(true)
   res.send()
 })
 
@@ -356,36 +372,59 @@ router.post('/downloadMedia', async (req,res) => {
   let buffers = []
   
   for (const item of megaFolder.children) {
-    const type = item.name.includes(".jpg") ? 'Image' : "Video"
+    const type = (item.name.toLowerCase().includes(".jpg") || item.name.toLowerCase().includes(".png"))? 'Image' : "Video"
     //const file = File.fromURL(item.shareURL)
     const data = await item.downloadBuffer()
-    buffers.push({name: item.name, type: type, data: Buffer.from(data).toString('base64')})
+
+    // Insert to the array at particular indeces based on positional uploading.
+    // basically sorts the array to the user's desired order despite chronology
+    buffers[item.name.substring(0, 1)] = {name: item.name.substring(1), type: type, data: Buffer.from(data).toString('base64')}
+
   }
+  
 
   // send the user's profile too, incase its some other user
   let profile = null;
 
 
-  User.findById({_id: req.body.uid })
+  User.findById(req.body.uid)
   .then((user) => {
     profile = user.profile
+    profile.age = calculateAge(profile.birthdate) // Add the user's age
+
+    res.send({media: buffers, profile: profile})
   })
   .catch((e) => {
     res.status(500).send(e)
   })
 
-  res.send({media: buffers, profile: profile})
+  
 })
+
+function calculateAge(dobString) {
+  const dob = new Date(dobString); // Convert string to Date object
+  const today = new Date();
+
+  let age = today.getFullYear() - dob.getFullYear();
+  const monthDifference = today.getMonth() - dob.getMonth();
+  
+  // If the current month is before the birth month, or it's the same month but the current day is before the birth day, subtract one year
+  if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < dob.getDate())) {
+    age--;
+  }
+
+  return age;
+}
 
 
 // POST endpoint to handle file uploads, compress, and upload to MEGA
 router.post('/uploadMedia', upload.single('file'), async (req, res) => {
   const filePath = req.file.path;
-  const fileName = req.file.filename;
+  const fileName = req.file.originalname;
   const compressedFilePath = `tempUploads/compressed-${fileName}`;
 
   try {
-    const isImg = filePath.includes(".jpg")
+    const isImg = filePath.toLowerCase().includes(".jpg") || filePath.toLowerCase().includes(".png")
 
     if (isImg)
     {
@@ -423,7 +462,8 @@ router.post('/uploadMedia', upload.single('file'), async (req, res) => {
     await megaFolder.upload({ name: fileName }, compressedFileBuffer).complete;
   
     // Clean up local temp files
-    fs.unlinkSync(isImg? compressedFilePath : filePath);
+    fs.unlinkSync(filePath);
+    if (isImg) fs.unlinkSync(compressedFilePath)
 
     // Return the Mega file URL
     // No longer returning this because it is not direct downloadable, encrypted so useless

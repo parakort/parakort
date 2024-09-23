@@ -1,8 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { SafeAreaView, View, Text, TouchableOpacity, TextInput, StyleSheet, Image, Animated, Keyboard, Alert } from 'react-native';
 import DatePicker from 'react-native-date-picker';
-import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import Media from './Media';
 import config from "../app.json";
 
 const Setup = (props) => {
@@ -83,65 +82,21 @@ const Setup = (props) => {
     setUserDetails({ ...userDetails, [field]: value });
   };
 
-  const requestPermission = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert("Permission Denied", "You need to grant media access permission.");
-      return false;
-    }
-    await AsyncStorage.setItem('mediaPermission', status);
-    return true;
-  };
+  // We submitted media from the Media component
+  // For setup, we just update the media part of our user details (to be profile)
+  function onSubmitMedia(index, new_media)
+  {
+    setUserDetails((prevState) => ({
+      ...prevState,
+      media: [
+        ...prevState.media.slice(0, index), 
+        new_media, 
+        ...prevState.media.slice(index + 1)
+      ],
+    }));
 
-  const pickMedia = async (index) => {
-    const permission = await AsyncStorage.getItem('mediaPermission') || await requestPermission();
-    if (permission) {
-      let result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: index ? ImagePicker.MediaTypeOptions.All : ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 1,
-        videoMaxDuration: 30,
-      });
+  }
 
-      if (!result.canceled) {
-        setUserDetails((prevState) => ({
-          ...prevState,
-          media: [...prevState.media, result.assets[0]],
-        }));
-      }
-    }
-  };
-
-  const renderMediaUpload = () => {
-    return (
-      <View style={styles.mediaContainer}>
-        <Text style={styles.mediaPrompt}>Now let's see that pretty face!</Text>
-        <View style={styles.mediaGrid}>
-          {Array.from({ length: 3 }).map((_, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.mediaBox,
-                userDetails.media[index] && styles.mediaFilled,
-              ]}
-              onPress={() => {pickMedia(index)}}
-              disabled={index > (props.media?.get(props.user._id)?.media ? props.media?.get(props.user._id)?.media.length : 0)}
-            >
-              {userDetails.media[index] ? (
-                <Image
-                  source={{ uri: userDetails.media[index].uri }}
-                  style={styles.mediaPreview}
-                />
-              ) : (
-                <Text style={styles.plusSign}>+</Text>
-              )}
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-    );
-  };
 
   const renderStepContent = () => {
     switch (step) {
@@ -240,7 +195,10 @@ const Setup = (props) => {
                 />
             </View>
 
-            {renderMediaUpload()}
+            <View style={styles.mediaContainer}>
+              <Text style={styles.mediaPrompt}>Now let's see that pretty face!</Text>
+              <Media media = {userDetails.media} onSubmitMedia = {onSubmitMedia}></Media>
+            </View>
           </View>
         );
       case 2:
@@ -412,31 +370,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     fontWeight: '100',
   },
-  mediaGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  mediaBox: {
-    width: '30%',
-    height: 100,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mediaFilled: {
-    borderWidth: 2,
-    borderColor: config.app.theme.blue,
-  },
-  plusSign: {
-    fontSize: 24,
-    color: '#808080',
-  },
-  mediaPreview: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 8,
-  },
+  
   finishedContainer: {
     flex: 1,
     alignItems: 'center',

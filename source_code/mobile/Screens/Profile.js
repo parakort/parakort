@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Platform, View, Text, StyleSheet, TextInput, TouchableWithoutFeedback, Keyboard, Switch, TouchableOpacity, Alert, SafeAreaView, Image, Dimensions, KeyboardAvoidingView } from 'react-native';
 import config from '../app.json'
-import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import Media from '../Components/Media';
+
 
 
 const Profile = (props) => {
@@ -14,6 +14,12 @@ const Profile = (props) => {
     const screenWidth = Dimensions.get('window').width;
     const imageSize = screenWidth * 0.3;
     const borderRadius = imageSize / 2;
+
+    const [bio, setBio] = useState(props.profile.bio)
+    // This is a cosmetic copy of our profile pics.
+    // Do not change this directly - it is changed by the Media component
+    // to display changes immediately, and is not persisted.
+    const [media, setMedia] = useState(props.media?.get(props.user._id)?.media)
 
     useEffect(() => {
       const keyboardDidShowListener = Keyboard.addListener(
@@ -80,32 +86,20 @@ const Profile = (props) => {
       
     };
 
-    const requestPermission = async () => {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert("Permission Denied", "You need to grant media access permission.");
-        return false;
-      }
-      await AsyncStorage.setItem('mediaPermission', status);
-      return true;
-    };
-  
-    const pickMedia = async (index) => {
-      const permission = await AsyncStorage.getItem('mediaPermission') || await requestPermission();
-      if (permission) {
-        let result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: index ? ImagePicker.MediaTypeOptions.All : ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
-          aspect: [4, 3],
-          quality: 1,
-          videoMaxDuration: 30,
-        });
-  
-        if (!result.canceled) {
-          props.updateMedia(index, result.assets[0])
-        }
-      }
-    };
+    // Called when media component for the Profile gets a new piece of media
+    function onSubmitMedia(index, new_media)
+    {
+      // Update the media locally on the component
+      // this is immediate, and cosmetic only
+      setMedia((prevState) => [
+        ...prevState.slice(0, index), 
+        new_media, 
+        ...prevState.slice(index + 1)
+      ]);
+
+      // This is the grand effect, not just cosmetic
+      props.updateMedia(index, new_media)
+    }
 
     
     // Show delete page if deleting
@@ -156,7 +150,7 @@ const Profile = (props) => {
           {/* Profile pic and name */}
           <View style={styles.imagecontainer}>
             <Image
-              source={{ uri: props.media? props.media?.get(props.user._id)?.media[0].uri : "" }}
+              source={{ uri: media[0]? media[0].uri : "" }}
               style={{
                   width: imageSize,
                   height: imageSize,
@@ -167,46 +161,26 @@ const Profile = (props) => {
             <Text style = {{fontSize: 20, color: config.app.theme.creme}}>{props.profile.firstName}</Text>
           </View>
 
-          <View>
+{/* Profile view (bio, media, sport settings) */}
+          <View style = {styles.spreadContainer}>
 
-            <KeyboardAvoidingView>
+            <View>
                   <Text style={styles.label}>Modify bio</Text>
                   <TextInput
                   style={[styles.input, styles.bioInput]}
                   placeholder="Your bio"
-                  value={props.profile.bio}
-                  onChangeText={(text) => handleInputChange('bio', text)}
+                  value={bio}
+                  onChangeText={(text) => setBio(text)}
                   maxLength={300}
                   multiline={false}
                   returnKeyType="done"
-                  onSubmitEditing={Keyboard.dismiss}
+                  onEndEditing={() => { props.updateProfile("bio", bio)}}
                   />
-              </KeyboardAvoidingView>
+              </View>
 
               <View style={styles.mediaContainer}>
                 <Text style={styles.label}>Modify Images</Text>
-                <View style={styles.mediaGrid}>
-                  {Array.from({ length: 3 }).map((_, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={[
-                        styles.mediaBox,
-                        props.media?.get(props.user._id)?.media[index] && styles.mediaFilled,
-                      ]}
-                      onPress={() => {pickMedia(index)}}
-                      disabled={index > (props.media?.get(props.user._id)?.media ? props.media?.get(props.user._id)?.media.length : 0)}
-                    >
-                      {props.media?.get(props.user._id)?.media[index] ? (
-                        <Image
-                          source={{ uri: props.media?.get(props.user._id)?.media[index].uri }}
-                          style={styles.mediaPreview}
-                        />
-                      ) : (
-                        <Text style={styles.plusSign}>+</Text>
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <Media media = {media} onSubmitMedia = {onSubmitMedia}></Media>
               </View>
             
           </View>
@@ -250,31 +224,6 @@ const styles = StyleSheet.create({
   mediaContainer: {
     marginTop: 20,
   },
-  mediaGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  mediaBox: {
-    width: '30%',
-    height: 100,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mediaFilled: {
-    borderWidth: 2,
-    borderColor: config.app.theme.blue,
-  },
-  plusSign: {
-    fontSize: 24,
-    color: '#808080',
-  },
-  mediaPreview: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 8,
-  },
   label: {
     fontSize: 18,
     fontWeight: '200',
@@ -299,7 +248,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     margin: 10,
+    
+  },
+
+  spreadContainer: {
     justifyContent: 'space-between', // Pushes content and buttons to the top and bottom, respectively
+    flex: 1,
   },
   logoText: {
     fontSize: Platform.OS === 'ios' && Platform.isPad ? 60 : 40,

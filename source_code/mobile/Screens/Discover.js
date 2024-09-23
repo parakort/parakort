@@ -90,6 +90,7 @@ const SwipeableCard = (props) => {
     //console.log("image loaded")
   };
 
+  if (props.currentSuggestion?.media[0]?.uri)
   return (
     <SafeAreaView style={app_styles.screen}>
       <GestureHandlerRootView style={{ flex: 1 }}>
@@ -109,16 +110,13 @@ const SwipeableCard = (props) => {
             ]}
           >
             <View style={styles.imageContainer}>
-            {props.currentSuggestion?.media[0]?.uri ? (
               <Image
                 source={{ uri: props.currentSuggestion.media[0].uri }}
                 style={styles.image}
                 onLoad={handleImageLoad}
               />
-            ) : (
-              <Text>Loading Image...</Text>
-            )}
-              <Text style={styles.name}>{props.currentSuggestion?.profile.firstName}</Text>
+             
+              <Text style={styles.name}>{props.currentSuggestion.profile.firstName}, {props.currentSuggestion.profile.age}</Text>
             </View>
             <View style={styles.descriptionContainer}>
               <Text style={styles.description}>{props.currentSuggestion?.profile.bio}</Text>

@@ -17,6 +17,10 @@ import RNFS from 'react-native-fs';
 
 import Purchases from 'react-native-purchases';
 
+// Should we wait for the suggestions media to load before dropping the splash?
+// right now, just waits for the first suggestion, but maybe wait til we load our own too.
+const HOLD_SPLASH_FOR_MEDIA = false
+
 const BASE_URL = config.app.server
 
 // Demo video url
@@ -84,13 +88,15 @@ export default function App() {
   }
 
   // Update media item, replacing with new if existing
+  // If we provide a falsey value (or nothing) to new_media param, it will delete the media at the given index and not replace it
+  // This will shift all others so we avoid gaps in the media.
   async function updateMedia(index, new_media)
   {
     // Check if we're trying to replace media 
     if (index < (media.get(user._id)? media.get(user._id).media.length : 0))
     {
       // delete the existing media at index
-      await axios.post(`${BASE_URL}/deleteMedia`, {uid: user._id, index: index})
+      await axios.post(`${BASE_URL}/deleteMedia`, {uid: user._id, index: index, shift: !new_media})
       .then(async (res) => {
 
       })
@@ -100,7 +106,7 @@ export default function App() {
     }
 
     // Upload the new media
-    await uploadMedia([new_media])
+    if (new_media) await uploadMedia([new_media])
 
     // Download the latest media locally, which will show the new media item on the profile page
     downloadMediaFiles(user._id)
@@ -209,6 +215,13 @@ const updateProfile = (key, newValue) => {
   // Deletes existing content if it exists
   // we call this if we want to forecefully get the user's latest pictures
   const downloadMediaFiles = async (uid) => {
+
+    // If we have the user's media, just return it
+    // If we do, it will have to be from this app state, since we delete all media when the app is opened
+    // 2 reasons to just return it: 1) It hasn't been that long since we opened the app 2) We should never download a user's media twice anyway, very rare in one app state.
+    //if (media.has(uid)) return media.get(uid)
+    // I don't do this because it only makes sense in testing for edge cases 
+    
     // Define a path where this user's media is to be stored
     const directoryPath = `${RNFS.DocumentDirectoryPath}/${uid}`;
   
@@ -232,6 +245,7 @@ const updateProfile = (key, newValue) => {
     try {
       // Now redownload all files
       const res = await axios.post(`${BASE_URL}/downloadMedia`, { uid });
+      
       let localMedia = res.data.media;
       let userProfile = res.data.profile;
       
@@ -242,7 +256,7 @@ const updateProfile = (key, newValue) => {
       }
 
       // Media object holds the user's profile and media
-      let userMedia = {profile: uid == user._id ? profile : userProfile, media: localMedia}
+      let userMedia = {profile: userProfile, media: localMedia}
       
   
       // we have the media for this user. Store it in the media Map, which will store in async storage also
@@ -326,9 +340,11 @@ const saveFileFromBuffer = async (media) => {
       storedSuggestions = storedSuggestions? JSON.parse(storedSuggestions) : []
       setSuggestions(storedSuggestions)
 
-      
       // Download the first suggestion first so we can load the media asap
       if (storedSuggestions.length) setCurrentSuggestion(await downloadMediaFiles(storedSuggestions[0]))
+
+      // When the first suggestion media is loaded, we can remove the splash to show the app
+      if (HOLD_SPLASH_FOR_MEDIA) setShowSplash(false)
       
 
       // Download latest media for ourself & our matches / suggestions, in parallel.
@@ -382,8 +398,8 @@ const saveFileFromBuffer = async (media) => {
     .then((res) => {
       console.log("Suggested", res.data)
 
-      // Start a media download for the user
-      downloadMediaFiles(res.data)
+      // Start a media download for the user if we don't have their media from recently
+      if (!media.has(res.FormData)) downloadMediaFiles(res.data)
 
       // Add the user to the suggestion array (side effect will generate more users if needed)
       setSuggestions(prevSuggestions => {
@@ -487,7 +503,12 @@ const saveFileFromBuffer = async (media) => {
 
   };
 
+  // When we first open the app
+
   useEffect(() => {
+    // Delete existing media
+    //deleteAllFiles() // We do this because we will re-download everything that is still necessary.
+
     // Subscribe to AppState changes
     const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
     //console.log("Opened")
@@ -657,10 +678,6 @@ function logIn(token)
     setProfile(res.data.user.profile)
 
     
-
-    // They logged in: If location is null, it is a new account, so get their location
-    // actually, don't we get their location upon EVERY login? yeah ...
-   
       // Get their current location
       // why do we need to do this if we do it every time we open the app?
       const { location, error } = await getLocation();
@@ -693,7 +710,8 @@ function logIn(token)
       console.log("RevenueCat failed to initialize")
     }
     
-    setShowSplash(false) // we finished our attempt to login, so we can hide the splash screen
+    // We now wait to remove the splash until we load the first user's images
+    if (!HOLD_SPLASH_FOR_MEDIA) setShowSplash(false) // we finished our attempt to login, so we can hide the splash screen
     setAuthenticated(true)
     
   })
