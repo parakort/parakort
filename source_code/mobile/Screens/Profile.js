@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Platform, View, Text, StyleSheet, TextInput, TouchableWithoutFeedback, Keyboard, Switch, TouchableOpacity, Alert, SafeAreaView, Image, Dimensions, KeyboardAvoidingView } from 'react-native';
 import config from '../app.json'
 import Media from '../Components/Media';
+import SkillPicker from '../Components/SkillPicker';
 
 
 
@@ -14,6 +15,8 @@ const Profile = (props) => {
     const screenWidth = Dimensions.get('window').width;
     const imageSize = screenWidth * 0.3;
     const borderRadius = imageSize / 2;
+
+    const [curPage, setCurPage] = useState(0)
 
     const [bio, setBio] = useState(props.profile.bio)
     // This is a cosmetic copy of our profile pics.
@@ -112,6 +115,12 @@ const Profile = (props) => {
       props.updateMedia(index, new_media)
     }
 
+    // Changing navigation page
+    function handleNavPress(page)
+    {
+      if (curPage !== page) setCurPage(page)
+    }
+
     
     // Show delete page if deleting
     if (delAccount)
@@ -171,10 +180,37 @@ const Profile = (props) => {
             />
             <Text style = {{fontSize: 20, color: config.app.theme.creme}}>{props.profile.firstName}</Text>
           </View>
+          
+          {/* 3 page tabs (navbar): Profile, Filters, Settings */}
+          <View style = {{display: "flex", flexDirection: "row", justifyContent: "space-between", marginVertical: 20}}>
+            <TouchableOpacity
+                style={{...styles.navButton, backgroundColor: curPage == 0 ? '#2f2e2e': '#e0e0e0'}}
+                onPress={() => handleNavPress(0)}
+              >
+              <Text style={{...styles.navButtonText, color: curPage == 0 ? config.app.theme.creme : config.app.theme.gray}}>Profile</Text>
+            </TouchableOpacity>
 
-{/* Profile view (bio, media, sport settings) */}
+            <TouchableOpacity
+                style={{...styles.navButton, backgroundColor: curPage == 1 ? config.app.theme.black: config.app.theme.grey}}
+                onPress={() => handleNavPress(1)}
+              >
+              <Text style={{...styles.navButtonText, color: curPage == 1 ? config.app.theme.creme : config.app.theme.gray}}>Filters</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                style={{...styles.navButton, backgroundColor: curPage == 2 ? config.app.theme.black: config.app.theme.grey}}
+                onPress={() => handleNavPress(2)}
+              >
+              <Text style={{...styles.navButtonText, color: curPage == 2 ? config.app.theme.creme : config.app.theme.gray}}>Settings</Text>
+            </TouchableOpacity>
+
+          </View>
+
+
+    {/* Profile view (bio, media, sport settings) */}
+          {curPage == 0 && 
+          (
           <View style = {styles.spreadContainer}>
-
             <View>
                   <Text style={styles.label}>Modify bio</Text>
                   <TextInput
@@ -189,20 +225,41 @@ const Profile = (props) => {
                   />
               </View>
 
+              
+
               <View style={styles.mediaContainer}>
                 <Text style={styles.label}>Modify Images</Text>
                 <Media media = {media} onSubmitMedia = {onSubmitMedia} onRemoveMedia = {onRemoveMedia}></Media>
               </View>
-            
-          </View>
+            </View>
+          )}
 
-          {/* <View style={styles.preferencesContainer}>
-            
-          </View>
-          {!isKeyboardOpen && (
-          <View>
-            
-          <View style={styles.buttonContainer}>
+          {/* Filter view (sport levels, age, etc) */}
+
+          {curPage == 1 &&
+          (
+            <View>
+              {/* Skills for each sport */}
+              <Text style={styles.label}>My Skill Levels</Text>
+
+              {/* Render each skill component from the array of sports */}
+              {props.filters.sports.map((sport, index) => (
+                <SkillPicker key={index} sport = {sport} />
+              ))}
+            </View>
+          )}
+
+
+          {/* Settings View */}
+          {curPage == 2 && 
+          (
+          <View style = {styles.spreadContainer}>
+
+            <View>
+
+            </View>
+
+        <View style={styles.buttonContainer}>
             
             <TouchableOpacity
               style={styles.buttonWithBorder}
@@ -219,8 +276,14 @@ const Profile = (props) => {
             </TouchableOpacity>
 
 
-          </View>
-          </View>)} */}
+        </View>
+            
+            </View>
+          )}
+          
+
+            
+
           
         
         </SafeAreaView>
@@ -303,6 +366,17 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: config.app.theme.red
+    
+  },
+  navButton: {
+    padding: 10,
+    margin: 5,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  navButtonText: {
     
   },
   title: {

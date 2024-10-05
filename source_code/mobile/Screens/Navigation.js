@@ -62,7 +62,7 @@ const Navigation = (props) => {
             <Page2 />}/>
 
           <Tab.Screen name="Profile" children={()=>
-            <Profile updateMedia = {props.updateMedia} user = {props.user} media = {props.media} profile = {props.profile} updateProfile = {props.updateProfile} logout = {props.logout} deleteAccount = {props.deleteAccount}/>}/>
+            <Profile updateFilter = {props.updateFilter} filters = {props.filters} updateMedia = {props.updateMedia} user = {props.user} media = {props.media} profile = {props.profile} updateProfile = {props.updateProfile} logout = {props.logout} deleteAccount = {props.deleteAccount}/>}/>
        
         </Tab.Navigator>
     </NavigationContainer>
