@@ -51,57 +51,68 @@ const SkillPicker = (props) => {
 
   return (
     <View style = {styles.skillContainer}>
-      <View style = {{display: "flex", flexDirection: "row", height: "100%", alignItems: "center", marginHorizontal: 10, justifyContent: "space-between"}}>
+      <View style = {{display: "flex", flexDirection: "column",justifyContent: "space-between"}}>
         
-        {/* <View style = {{display: "flex", flexDirection: "column", alignItems: "center"}}>
+        <View style = {{display: "flex", flexDirection: "row", alignItems: "center", margin: "3%"}}>
           <Image style={styles.image}  source = { imageSource }></Image>
           <Text style = {styles.skillLabel}>{props.sport.sportId.name}</Text>
           
-        </View> */}
+        </View>
+
+      <View style = {{display: "flex", flexDirection: "row", alignItems: "center",  justifyContent: "space-between", marginHorizontal: 10}}>
+      
 
 
-        <View style = {{display: "flex", flexDirection: "column"}}>
+        <View style={{ flexDirection: "column" }}>
           <Text style={styles.skillText}>Looking for:</Text>
-
-          <View style = {{display: "flex", flexDirection: "row"}}>
-          <TouchableOpacity
-                  style={{...styles.levelButton, backgroundColor: matchSkillLevels.includes(0) ? config.app.theme.blue: config.app.theme.grey}}
-                  onPress={() => handleLevelPress(0)}
-                >
-                <Text style={{color: config.app.theme.black}}>BEG</Text>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[
+                styles.levelButton,
+                { backgroundColor: matchSkillLevels.includes(0) ? config.app.theme.blue : config.app.theme.grey }
+              ]}
+              onPress={() => handleLevelPress(0)}
+            >
+              <Text style={{ color: config.app.theme.black }}>BEG</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-                  style={{...styles.levelButton, backgroundColor: matchSkillLevels.includes(1) ? config.app.theme.blue: config.app.theme.grey}}
-                  onPress={() => handleLevelPress(1)}
-                >
-                <Text style={{color: config.app.theme.black}}>INT</Text>
+              style={[
+                styles.levelButton,
+                { backgroundColor: matchSkillLevels.includes(1) ? config.app.theme.blue : config.app.theme.grey }
+              ]}
+              onPress={() => handleLevelPress(1)}
+            >
+              <Text style={{ color: config.app.theme.black }}>INT</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-                  style={{...styles.levelButton, backgroundColor: matchSkillLevels.includes(2) ? config.app.theme.blue: config.app.theme.grey}}
-                  onPress={() => handleLevelPress(2)}
-                >
-                <Text>ADV</Text>
+              style={[
+                styles.levelButton,
+                { backgroundColor: matchSkillLevels.includes(2) ? config.app.theme.blue : config.app.theme.grey }
+              ]}
+              onPress={() => handleLevelPress(2)}
+            >
+              <Text style={{ color: config.app.theme.black }}>ADV</Text>
             </TouchableOpacity>
           </View>
-
-
         </View>
 
 
 
-        <View style = {{display: "flex", flexDirection: "column"}}>
-          <Text style={styles.skillText}>My level: {skillLevels[mySkillLevel]}</Text>
 
-          <Slider
-            minimumValue={0}
-            maximumValue={2}
-            step={1}
-            value={mySkillLevel}
-            onValueChange={value => setMySkillLevel(value)} // Update state on slider change
-            onSlidingComplete={value => props.updateFilter('sports', { index: props.index, data: { my_level: value } })}
-          />
+          <View style = {{display: "flex", flexDirection: "column"}}>
+            <Text style={styles.skillText}>My level: {skillLevels[mySkillLevel]}</Text>
+
+            <Slider
+              minimumValue={0}
+              maximumValue={2}
+              step={1}
+              value={mySkillLevel}
+              onValueChange={value => setMySkillLevel(value)} // Update state on slider change
+              onSlidingComplete={value => props.updateFilter('sports', { index: props.index, data: { my_level: value } })}
+            />
+          </View>
         </View>
       </View>
       
@@ -110,17 +121,22 @@ const SkillPicker = (props) => {
 };
 
 const styles = StyleSheet.create({
+  buttonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-evenly",
+    marginTop: 5,
+  },
   levelButton: {
-    padding: 0,
-    margin: 0,
+    width: 60, // Adjust width as needed
+    padding: 2,
+    margin: 2,
     borderRadius: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   image: {
-    height: '50%',            // Set height to 50% of the parent container
-    width: '50%',             // Set width to match height
+    height: 30,            // Set height to 50% of the parent container
+    width: 30,             // Set width to match height
     aspectRatio: 1,           // Maintain a 1:1 aspect ratio
     resizeMode: 'contain',    // Maintain the image's aspect ratio while fitting within the dimensions
   },
@@ -138,8 +154,8 @@ const styles = StyleSheet.create({
 
   skillLabel: {
     fontSize: 20,
-    marginTop: 3,
-    fontWeight: 100,
+    marginLeft: 10,
+    fontWeight: "100",
   }
 });
 
