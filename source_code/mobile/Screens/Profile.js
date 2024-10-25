@@ -244,7 +244,7 @@ const Profile = (props) => {
 
               {/* Render each skill component from the array of sports */}
               {props.filters.sports.map((sport, index) => (
-                <SkillPicker key={index} sport = {sport} />
+                <SkillPicker updateFilter = {props.updateFilter} key={index} index = {index} sport = {sport} />
               ))}
             </View>
           )}

@@ -170,6 +170,10 @@ export default function App() {
   /** 
    * @FILTERS
    * Function to update a specific filter
+   * Can update an array element as well, in this matter:
+   * ex: updateFilter('sports', { index: 1, data: { my_level: 2, match_level: [1, 2] } });
+   * 
+   * Values not provided when updating an object in an array, will remain unchanged.
    */
   const updateNestedKey = (filters, key, value) => {
     const keys = key.split('.');
@@ -178,7 +182,14 @@ export default function App() {
 
     keys.forEach((cur, idx) => {
         if (idx === keys.length - 1) {
-            temp[cur] = value; // Update the final key with the new value
+            if (Array.isArray(temp[cur])) {
+                const index = value.index; // Assuming value contains an index property
+                const newItemValues = value.data; // New values to set
+                // Merge the existing object with the new values
+                temp[cur][index] = { ...temp[cur][index], ...newItemValues };
+            } else {
+                temp[cur] = value; // For non-array cases, just update the key directly
+            }
         } else {
             temp[cur] = { ...temp[cur] }; // Make sure we don't mutate the original object
             temp = temp[cur];
@@ -802,7 +813,7 @@ if (showSplash)
     return (
       <>
           {/* Navigation is the actual Screen which gets displayed based on the tab cosen */}
-          <Navigation updateFilters = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
+          <Navigation updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
           
           
           {/* Help Modal */}
