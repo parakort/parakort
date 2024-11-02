@@ -3,6 +3,7 @@ import { Platform, View, Text, StyleSheet, TextInput, TouchableWithoutFeedback, 
 import config from '../app.json'
 import Media from '../Components/Media';
 import SkillPicker from '../Components/SkillPicker';
+import SocialModal from '../Components/SocialModal';
 
 
 
@@ -12,6 +13,9 @@ const Profile = (props) => {
 
     // Keybaord open, then hide stuff to fix android bug    
     const [isKeyboardOpen, setKeyboardOpen] = useState(false);
+    const [isModalVisible, setModalVisible] = useState(false);
+    const [curPlatform, setCurPlatform] = useState('penis') // platform to change link to
+
     const screenWidth = Dimensions.get('window').width;
     const imageSize = screenWidth * 0.3;
     const borderRadius = imageSize / 2;
@@ -48,6 +52,13 @@ const Profile = (props) => {
     // For deletion:
     const [password, setPassword] = useState('');
     const [delAccount, setDelAccount] = useState(false);
+
+    // When clicking on a social icon to link our account
+    function updateSocial(selected_platform)
+    {
+      setCurPlatform(selected_platform)
+      setModalVisible(true)
+    }
 
 
     
@@ -167,6 +178,15 @@ const Profile = (props) => {
     return (
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <SafeAreaView style={styles.container}>
+        <SocialModal
+          isVisible={isModalVisible}
+          onClose={() => setModalVisible(false)}
+          provider = {curPlatform}
+          updateProfile = {props.updateProfile}
+          // Current username
+          username = {props.profile.socials[curPlatform] ? props.profile.socials[curPlatform] : ""}
+        />
+
           {/* Profile pic and name */}
           <View style={styles.imagecontainer}>
             <Image
@@ -211,7 +231,25 @@ const Profile = (props) => {
           {curPage == 0 && 
           (
           <View style = {styles.spreadContainer}>
-            <View>
+            {/* Upper container */}
+            <View style = {{gap: 20}}>
+              
+              <View style={styles.iconContainer}>
+                <TouchableOpacity onPress={() => updateSocial("instagram")}>
+                  <Image style={styles.icon} source={require('../assets/social-icons/instagram.png')} />
+                </TouchableOpacity>
+                
+                <TouchableOpacity onPress={() => updateSocial("linkedin")}>
+                  <Image style={styles.icon} source={require('../assets/social-icons/linkedin.png')} />
+                </TouchableOpacity>
+                
+                <TouchableOpacity onPress={() => updateSocial("facebook")}>
+                  <Image style={styles.icon} source={require('../assets/social-icons/facebook.png')} />
+                </TouchableOpacity>
+                
+              </View>
+
+              <View>
                   <Text style={styles.label}>Modify bio</Text>
                   <TextInput
                   style={[styles.input, styles.bioInput]}
@@ -224,6 +262,10 @@ const Profile = (props) => {
                   onEndEditing={() => { props.updateProfile("bio", bio)}}
                   />
               </View>
+
+              
+            </View>
+            
 
               
 
@@ -295,6 +337,19 @@ const Profile = (props) => {
 };
 
 const styles = StyleSheet.create({
+  iconContainer: {
+
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-evenly"
+  },
+  icon: { 
+    
+    width: "32%",
+    height: "auto",
+    aspectRatio: 1,
+    alignSelf: "center",
+  },
   mediaContainer: {
     marginTop: 20,
   },

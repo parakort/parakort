@@ -26,13 +26,17 @@
     "assetBundlePatterns": [
       "**/*"
     ],
-    "ios": {
+   "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.builtbypeter.theclubhouse",
-
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Your location is required to discover nearby players.",
-        "NSLocationAlwaysUsageDescription": "Your location is required to discover nearby players."
+        "NSLocationAlwaysUsageDescription": "Your location is required to discover nearby players.",
+        "LSApplicationQueriesSchemes": [
+          "instagram",
+          "fb",       
+          "linkedin"    
+        ]
       }
     },
     "android": {
