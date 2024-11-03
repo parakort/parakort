@@ -14,16 +14,16 @@ const SwipeableCard = (props) => {
 
   const styles = StyleSheet.create({
     iconContainer: {
-      borderWidth: 1,      // Add this
-      borderColor: 'red',  // Add this (or any visible color)
       display: "flex",
       flexDirection: "column",
-      justifyContent: "space-evenly",
+      justifyContent: "space-evenly"
+      
     },
     icon: {
       height: "50%",
       aspectRatio: 1,
       resizeMode: "contain",
+      top: "37.5%",
     },
     imageContainer: {
       flex: 1,

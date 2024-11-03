@@ -7,7 +7,7 @@ const SocialModal = ({ isVisible, onClose, provider, updateProfile, username }) 
   const [text, setText] = useState('');
   const [url, setUrl] = useState('')
   const [appUrl, setAppUrl] = useState('')
-  const [icon, setIcon] = useState('')
+  const [icon, setIcon] = useState(require('../assets/notfound.jpg'))
 
 
 
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    marginBottom: 10,
+    margin: 10,
   },
   input: {
     width: '100%',

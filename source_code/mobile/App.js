@@ -249,7 +249,11 @@ const updateProfile = (key, newValue) => {
   
       // Iterate over the files and delete each one
       for (const file of files) {
-        await RNFS.unlink(file.path);
+        try {
+          await RNFS.unlink(file.path);
+        } catch (error) {
+
+        }
       }
     }
   
