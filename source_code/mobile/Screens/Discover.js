@@ -3,6 +3,7 @@ import { View, Image, Text, StyleSheet, Animated, SafeAreaView, TouchableOpacity
 import { GestureHandlerRootView, PanGestureHandler } from 'react-native-gesture-handler';
 import app_styles from '../styles';
 import config from "../app.json"
+import sportIcons from '../utils/icons';
 
 
 
@@ -13,6 +14,33 @@ const SwipeableCard = (props) => {
   const [mediaIndex, setMediaIndex] = useState(0)
 
   const styles = StyleSheet.create({
+    skillContainer: {
+      display: "flex",
+      flexDirection: "row",
+      justifyContent: "space-evenly",
+      borderWidth: 2,
+      borderRadius: 10,
+      width: "90%",
+      height: "5%",
+      backgroundColor: config.app.theme.creme,
+      alignSelf: "center",
+      bottom: "2.5%",
+
+
+    },
+
+    skillItem: {
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center"
+    },
+
+    skillIcon: {
+      height: "90%",
+      width: "auto",
+      aspectRatio: 1
+    },
+
     iconContainer: {
       display: "flex",
       flexDirection: "column",
@@ -224,7 +252,15 @@ const SwipeableCard = (props) => {
                 <Text style={styles.arrowText}>{">"}</Text>
               </TouchableOpacity>
              
+              
               <Text style={styles.name}>{props.currentSuggestion.profile.firstName}, {props.currentSuggestion.profile.age}</Text>
+
+              <View style = {styles.skillContainer}>
+                <View style = {styles.skillItem}>
+                  <Image source={sportIcons.golf} style = {styles.skillIcon}></Image>
+                </View>
+              </View>
+
             </View>
             <View style={styles.descriptionContainer}>
               <Text style={styles.description}>{props.currentSuggestion?.profile.bio}</Text>

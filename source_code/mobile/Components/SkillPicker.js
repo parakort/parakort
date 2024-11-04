@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import config from "../app.json";
 import Slider from '@react-native-community/slider';
+import sportIcons from '../utils/icons';
 
 // When the level changes, we need to call updateFilter function from App.js, which is exposed to Profile.js
 const SkillPicker = (props) => {
@@ -27,15 +28,11 @@ const SkillPicker = (props) => {
 
 
   // Preload known assets (local sport icons)
-  const assetMap = {
-    golf: require('../assets/sport-icons/golf.png'),
-    tennis: require('../assets/sport-icons/tennis.png'),
-    pickleball: require('../assets/sport-icons/pickleball.png'),
-  };
+  
 
   // Check if the sport has a corresponding local asset
-  if (assetMap[props.sport.sportId.name.toLowerCase()]) {
-    imageSource = assetMap[props.sport.sportId.name.toLowerCase()]; // Use local asset if it exists
+  if (sportIcons[props.sport.sportId.name.toLowerCase()]) {
+    imageSource = sportIcons[props.sport.sportId.name.toLowerCase()]; // Use local asset if it exists
   } else {
     imageSource = { uri: props.sport.sportId.image }; // Fallback to URL image if local asset not found
   }
