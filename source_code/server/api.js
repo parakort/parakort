@@ -66,7 +66,7 @@
 
     userSports = sports.map(sport => ({
       sportId: sport._id,
-      my_level: 0, // Default level or other initialization
+      my_level: 1, // Default level to beginner
       match_level: []
     }));
 
@@ -300,6 +300,11 @@ router.post('/suggestUser', async (req, res) => {
   // for now, just pick a random user from the database.
   const users = await User.aggregate([{ $sample: { size: 1 } }]);
 
+  // TODO
+  // If my_level is > 0 for a sport, search for someone who plays that sport
+  // If my_level is 0, don't search for a player that plays that sport, even if we have match_level array with levels in it.
+  // We can still find someone who plays that sport, but only if they match some other critera (other sport search succeeds)
+
   // Check if a user was found
   if (users.length > 0) {
     res.send(users[0]._id)
@@ -395,22 +400,27 @@ router.post('/downloadMedia', async (req,res) => {
     return
   }
 
-  // send the user's profile too, incase its some other user
+  // send the user's profile too, and their sports
   let profile = null;
+  let sports = null
 
 
-  User.findById(req.body.uid)
-  .then((user) => {
+  const user = await User.findById(req.body.uid).populate('filters.sports.sportId')
+  
+  if (user)
+  {
     profile = user.profile
+    sports = user.filters.sports
+
+    
     profile.age = calculateAge(profile.birthdate) // Add the user's age
 
-    res.send({media: buffers, profile: profile})
-  })
-  .catch((e) => {
+    res.send({media: buffers, profile: profile, sports: sports})
+  }
+  else
+  {
     res.status(500).send(e)
-  })
-
-  
+  }
 })
 
 function calculateAge(dobString) {

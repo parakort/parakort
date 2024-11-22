@@ -263,6 +263,7 @@ const updateProfile = (key, newValue) => {
       
       let localMedia = res.data.media;
       let userProfile = res.data.profile;
+      let sports = res.data?.sports? res.data?.sports : null
       
   
       for (const media of localMedia) {
@@ -271,7 +272,7 @@ const updateProfile = (key, newValue) => {
       }
 
       // Media object holds the user's profile and media
-      let userMedia = {profile: userProfile, media: localMedia}
+      let userMedia = {profile: userProfile, media: localMedia, sports: sports}
       
   
       // we have the media for this user. Store it in the media Map, which will store in async storage also
@@ -302,6 +303,7 @@ const saveFileFromBuffer = async (media) => {
     return filePath
   } catch (error) {
     console.error('Error saving file:', error);
+  
   }
 };
 
@@ -411,7 +413,7 @@ const saveFileFromBuffer = async (media) => {
     // (TODO) also send an array of history (users we should exclude)
     axios.post(`${BASE_URL}/suggestUser`, {matches: matches.map(match => match.uid), history: suggestions})
     .then((res) => {
-      console.log("Suggested", res.data)
+      //console.log("Suggested", res.data)
 
       // Start a media download for the user if we don't have their media from recently
       if (!media.has(res.FormData)) downloadMediaFiles(res.data)
@@ -439,9 +441,19 @@ const saveFileFromBuffer = async (media) => {
     })
   }
 
+  async function refreshSuggestion()
+  {
+    
+    setCurrentSuggestion(await downloadMediaFiles(suggestions[0]))
+  }
+
   // Delete media by uid: Aside from expiry, we can delete a media object (user profile and their media ) directly
   // used when swiping left, or blocking someone, for example
   function deleteMedia(uid) { 
+
+    // Abort if this user is in our suggestions list
+    if (suggestions.includes(uid)) return
+
     // Shallow copy of the map
     const updatedMap = new Map(media);
   
@@ -817,7 +829,7 @@ if (showSplash)
     return (
       <>
           {/* Navigation is the actual Screen which gets displayed based on the tab cosen */}
-          <Navigation updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
+          <Navigation refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
           
           
           {/* Help Modal */}

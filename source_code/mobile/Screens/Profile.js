@@ -4,6 +4,7 @@ import config from '../app.json'
 import Media from '../Components/Media';
 import SkillPicker from '../Components/SkillPicker';
 import SocialModal from '../Components/SocialModal';
+import DemographicPicker from '../Components/DemographicPicker'
 
 
 
@@ -40,6 +41,7 @@ const Profile = (props) => {
         () => {
           setKeyboardOpen(false);
         }
+        
       );
 
       return () => {
@@ -47,7 +49,6 @@ const Profile = (props) => {
         keyboardDidHideListener.remove();
       };
     }, []);
-
 
     // For deletion:
     const [password, setPassword] = useState('');
@@ -281,6 +282,10 @@ const Profile = (props) => {
           {curPage == 1 &&
           (
             <View>
+              {/* Demographics */}
+              <Text style={styles.label}>Demographics</Text>
+              <DemographicPicker updateFilter = {props.updateFilter} age = {props.filters.age} female = {props.filters.female} male = {props.filters.male}></DemographicPicker>
+
               {/* Skills for each sport */}
               <Text style={styles.label}>My Skill Levels</Text>
 
@@ -288,6 +293,8 @@ const Profile = (props) => {
               {props.filters.sports.map((sport, index) => (
                 <SkillPicker updateFilter = {props.updateFilter} key={index} index = {index} sport = {sport} />
               ))}
+
+              
             </View>
           )}
 

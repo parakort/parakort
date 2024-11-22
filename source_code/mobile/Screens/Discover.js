@@ -20,25 +20,32 @@ const SwipeableCard = (props) => {
       justifyContent: "space-evenly",
       borderWidth: 2,
       borderRadius: 10,
-      width: "90%",
-      height: "5%",
+      width: "85%",
+      height: "8%",
       backgroundColor: config.app.theme.creme,
       alignSelf: "center",
-      bottom: "2.5%",
-
+      bottom: "8%",
+      padding: "0.5%"
 
     },
 
     skillItem: {
       display: "flex",
       flexDirection: "column",
-      justifyContent: "center"
+      alignSelf: 'center',
     },
 
     skillIcon: {
-      height: "90%",
+      height: "60%",
+      aspectRatio: 1,
+      alignSelf: 'center'
+    },
+    skillLevel: {
+      height: "30%",
       width: "auto",
-      aspectRatio: 1
+      aspectRatio: 3,
+      marginTop: 3
+      
     },
 
     iconContainer: {
@@ -93,7 +100,7 @@ const SwipeableCard = (props) => {
     },
     name: {
       position: 'absolute',
-      bottom: 10,
+      bottom: 30,
       left: 10,
       color: 'white',
       fontSize: 20,
@@ -256,9 +263,21 @@ const SwipeableCard = (props) => {
               <Text style={styles.name}>{props.currentSuggestion.profile.firstName}, {props.currentSuggestion.profile.age}</Text>
 
               <View style = {styles.skillContainer}>
-                <View style = {styles.skillItem}>
-                  <Image source={sportIcons.golf} style = {styles.skillIcon}></Image>
-                </View>
+              {props.currentSuggestion.sports.map((sport) => (
+                (sport.my_level !== 0) && ( // Render only if my_level is not 0
+                  <View key={sport.id} style={styles.skillItem}>
+                    <Image 
+                      source={sportIcons[sport.sportId.name.toLowerCase()] ? sportIcons[sport.sportId.name.toLowerCase()] : sport.sportId.image} 
+                      style={styles.skillIcon} 
+                    />
+                    <Image 
+                      source={sportIcons[sport.my_level === 1 ? "beg" : sport.my_level === 2 ? "int" : "adv"]} 
+                      style={styles.skillLevel} 
+                    />
+                  </View>
+                )
+              ))}
+
               </View>
 
             </View>
@@ -292,6 +311,12 @@ const SwipeableCard = (props) => {
     </SafeAreaView>
   );
 
+  // Error loading media: downloadAgain
+  else
+  {
+    props.refreshSuggestion()
+    
+  }
   
 
 };
