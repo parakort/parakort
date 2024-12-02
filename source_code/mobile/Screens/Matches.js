@@ -10,9 +10,10 @@ const Matches = (props) => {
 
 
 
+  if (props.matches)
   return (
     <View style = {styles.screen}>
-      <Text>Matches</Text>
+      <Text style = {{fontSize: 25, fontWeight: 100, paddingBottom: 10}}>My Matches</Text>
 
       {props.matches
         .filter(match => match.mutual) // Filter to include only matches with mutual: true

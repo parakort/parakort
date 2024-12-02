@@ -3,7 +3,8 @@ import { View, Image, Text, StyleSheet, Animated, SafeAreaView, TouchableOpacity
 import { GestureHandlerRootView, PanGestureHandler } from 'react-native-gesture-handler';
 import app_styles from '../styles';
 import config from "../app.json"
-import sportIcons from '../utils/icons';
+import SocialButtons from '../Components/SocialButtons';
+import SkillLevels from '../Components/SkillLevels';
 
 
 
@@ -15,50 +16,14 @@ const SwipeableCard = (props) => {
 
   const styles = StyleSheet.create({
     skillContainer: {
-      display: "flex",
-      flexDirection: "row",
-      justifyContent: "space-evenly",
-      borderWidth: 2,
-      borderRadius: 10,
+
+      position: "absolute",
       width: "85%",
       height: "8%",
-      backgroundColor: config.app.theme.creme,
       alignSelf: "center",
-      bottom: "8%",
+      bottom: "-3%",
       padding: "0.5%"
 
-    },
-
-    skillItem: {
-      display: "flex",
-      flexDirection: "column",
-      alignSelf: 'center',
-    },
-
-    skillIcon: {
-      height: "60%",
-      aspectRatio: 1,
-      alignSelf: 'center'
-    },
-    skillLevel: {
-      height: "30%",
-      width: "auto",
-      aspectRatio: 3,
-      marginTop: 3
-      
-    },
-
-    iconContainer: {
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: "space-evenly"
-      
-    },
-    icon: {
-      height: "50%",
-      aspectRatio: 1,
-      resizeMode: "contain",
-      top: "37.5%",
     },
     imageContainer: {
       flex: 1,
@@ -262,48 +227,16 @@ const SwipeableCard = (props) => {
               
               <Text style={styles.name}>{props.currentSuggestion.profile.firstName}, {props.currentSuggestion.profile.age}</Text>
 
-              <View style = {styles.skillContainer}>
-              {props.currentSuggestion.sports.map((sport) => (
-                (sport.my_level !== 0) && ( // Render only if my_level is not 0
-                  <View key={sport.id} style={styles.skillItem}>
-                    <Image 
-                      source={sportIcons[sport.sportId.name.toLowerCase()] ? sportIcons[sport.sportId.name.toLowerCase()] : sport.sportId.image} 
-                      style={styles.skillIcon} 
-                    />
-                    <Image 
-                      source={sportIcons[sport.my_level === 1 ? "beg" : sport.my_level === 2 ? "int" : "adv"]} 
-                      style={styles.skillLevel} 
-                    />
-                  </View>
-                )
-              ))}
+              
 
+              <View style = {styles.skillContainer}>
+                <SkillLevels sports = {props.currentSuggestion.sports}></SkillLevels>
               </View>
 
             </View>
             <View style={styles.descriptionContainer}>
               <Text style={styles.description}>{props.currentSuggestion?.profile.bio}</Text>
-              <View style={styles.iconContainer}>
-                {props.currentSuggestion?.profile.socials.instagram && (
-                  <TouchableOpacity onPress={() => openProfile(`https://www.instagram.com/${props.currentSuggestion?.profile.socials.instagram}`, `instagram://user?username=${props.currentSuggestion?.profile.socials.instagram}`)}>
-                  < Image style={styles.icon} source={require('../assets/social-icons/instagram.png')} />
-                  </TouchableOpacity>
-                )}
-                
-                {props.currentSuggestion?.profile.socials.linkedin && (
-                  <TouchableOpacity onPress={() => openProfile(`https://www.linkedin.com/in/${props.currentSuggestion?.profile.socials.linkedin}`, `linkedin://in/${props.currentSuggestion?.profile.socials.linkedin}`)}>
-                    <Image style={styles.icon} source={require('../assets/social-icons/linkedin.png')} />
-                  </TouchableOpacity>
-                )}
-                
-                {props.currentSuggestion?.profile.socials.facebook && (
-
-                  <TouchableOpacity onPress={() => openProfile(`https://www.facebook.com/${props.currentSuggestion?.profile.socials.facebook}`, `fb://profile/${props.currentSuggestion?.profile.socials.facebook}`)}>
-                    <Image style={styles.icon} source={require('../assets/social-icons/facebook.png')} />
-                  </TouchableOpacity>
-                )}
-
-              </View>
+              <SocialButtons socials = {props.currentSuggestion?.profile.socials}></SocialButtons>
             </View>
           </Animated.View>
         </PanGestureHandler>
