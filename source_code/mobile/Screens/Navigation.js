@@ -8,7 +8,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 
 import Discover from './Discover.js'
 import Profile from './Profile.js'
-import Page2 from './Page2.js'
+import Matches from './Matches.js'
 
 const MyTheme = {
   ...DefaultTheme,
@@ -37,7 +37,7 @@ const Navigation = (props) => {
               
               if (route.name === 'Discover') {
                 iconName = focused ? 'search' : 'search-outline';
-              } else if (route.name === 'Likes') {
+              } else if (route.name === 'Matches') {
                 iconName = focused ? 'heart' : 'heart-outline';
               } else if (route.name === 'Chat') {
                 iconName = focused ? 'chatbubble' : 'chatbubble-outline';
@@ -55,11 +55,11 @@ const Navigation = (props) => {
           <Tab.Screen name="Discover" children={()=>
             <Discover refreshSuggestion = {props.refreshSuggestion} swiped = {props.swiped} currentSuggestion = {props.currentSuggestion}/>}/>
 
-          <Tab.Screen name="Likes" children={()=>
-            <Page2 />}/>
+          <Tab.Screen name="Matches" children={()=>
+            <Matches matches = {props.matches} media = {props.media}/>}/>
 
           <Tab.Screen name="Chat" children={()=>
-            <Page2 />}/>
+            <Matches />}/>
 
           <Tab.Screen name="Profile" children={()=>
             <Profile updateFilter = {props.updateFilter} filters = {props.filters} updateMedia = {props.updateMedia} user = {props.user} media = {props.media} profile = {props.profile} updateProfile = {props.updateProfile} logout = {props.logout} deleteAccount = {props.deleteAccount}/>}/>

@@ -268,14 +268,19 @@ router.post('/matchUser', async (req, res) => {
 
     // Return the status of whether we are a mutual match
     res.send(mutual)
+    console.log(mutual)
 
     // Update the swiping user's matches database with this user,
     // and whether or not we are currently a mutual match.
-    User.findByIdAndUpdate(
-      req.body.source,
-      { $push: { matches: {uid: req.body.dest, mutual: mutual} } },
-    );
-
+      try {
+        await User.findByIdAndUpdate(
+          req.body.source,
+          { $push: { matches: { uid: req.body.dest, mutual: mutual } } },
+          { new: true } // Ensures the updated document is returned
+        );
+      } catch (err) {
+        console.error(err); // Print any errors
+      }
 
     // If this match became mutual, update the other user's existing match object to be mutual, and perform notifications on frontend as arespult.
     if (mutual)

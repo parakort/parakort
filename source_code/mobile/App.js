@@ -632,36 +632,43 @@ const saveFileFromBuffer = async (media) => {
 // We swiped on a user.
 function swiped(right)
 {
-  if (right)
+
+  // Make sure we haven't already matched
+  // This isn't necessary, because, the match algorithm will not include current matches.
+  // Temporary, for testing, since there is no match algorithm yet.
+  // We want to check if it is another user & exists, or if its myself, if it's not mutual.
+  if (! ( (suggestions[0] == user._id) ? (matches.some(item => (item.uid === suggestions[0] && item.mutual))) :  matches.some(item => item.uid === suggestions[0])))
   {
-    // move suggestions[0] to matches, useEffect should update in DB.
-    // we do not need to downloadMedia, it is already downloaded.
-    
-    // Is it mutual?
-    axios.post(`${BASE_URL}/matchUser`, {source: user._id, dest: suggestions[0]})
-    .then((res) => {
-      let mutual = res.data
-      // We don't need to persist to DB here, because we do it in this /matchUser api call.
-      setMatches([...matches, {uid: suggestions[0], mutual: mutual}])
+    if (right)
+    {
+      // move suggestions[0] to matches, useEffect should update in DB.
+      // we do not need to downloadMedia, it is already downloaded.
 
-      if (mutual)
-      {
-        // play fun effect
-        // ...
-      }
-      
-    })
-    .catch((e) => {
-      console.log("Error matching user:",e)
-    })
+      // Is it mutual?
+      axios.post(`${BASE_URL}/matchUser`, {source: user._id, dest: suggestions[0]})
+      .then((res) => {
+        let mutual = res.data
+        // We don't need to persist to DB here, because we do it in this /matchUser api call.
+        setMatches([...matches, {uid: suggestions[0], mutual: mutual}])
 
+        if (mutual)
+        {
+          // play fun effect
+          // ...
+        }
+        
+      })
+      .catch((e) => {
+        console.log("Error matching user:",e)
+      })
+
+    }
+    else
+    {
+      // delete the media for this user
+      deleteMedia(suggestions[0])
+    }
   }
-  else
-  {
-    // delete the media for this user
-    deleteMedia(suggestions[0])
-  }
-
   // Suggest a new user, which will shift the suggestions as well
   suggestUser()
 }
@@ -829,7 +836,7 @@ if (showSplash)
     return (
       <>
           {/* Navigation is the actual Screen which gets displayed based on the tab cosen */}
-          <Navigation refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
+          <Navigation matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
           
           
           {/* Help Modal */}

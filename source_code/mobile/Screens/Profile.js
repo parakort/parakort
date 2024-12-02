@@ -22,6 +22,7 @@ const Profile = (props) => {
     const borderRadius = imageSize / 2;
 
     const [curPage, setCurPage] = useState(0)
+    const [curFilter, setCurFilter] = useState(0)
 
     const [bio, setBio] = useState(props.profile.bio)
     // This is a cosmetic copy of our profile pics.
@@ -131,6 +132,12 @@ const Profile = (props) => {
     function handleNavPress(page)
     {
       if (curPage !== page) setCurPage(page)
+    }
+
+    // Changing navigation page for filters
+    function handleFilterNav(page)
+    {
+      if (curFilter !== page) setCurFilter(page)
     }
 
     
@@ -282,18 +289,51 @@ const Profile = (props) => {
           {curPage == 1 &&
           (
             <View>
+
+
+              {/* Filter navbar */}
+              <View style = {{display: "flex", flexDirection: "row", justifyContent: "space-between"}}>
+                <TouchableOpacity
+                    style={{...styles.navButton, backgroundColor: curFilter == 0 ? '#2f2e2e': '#e0e0e0'}}
+                    onPress={() => handleFilterNav(0)}
+                  >
+                  <Text style={{...styles.navButtonText, color: curFilter == 0 ? config.app.theme.creme : config.app.theme.gray}}>Skills</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={{...styles.navButton, backgroundColor: curFilter == 1 ? config.app.theme.black: config.app.theme.grey}}
+                    onPress={() => handleFilterNav(1)}
+                  >
+                  <Text style={{...styles.navButtonText, color: curFilter == 1 ? config.app.theme.creme : config.app.theme.gray}}>People</Text>
+                </TouchableOpacity>
+
+
+              </View>
+
+
               {/* Demographics */}
-              <Text style={styles.label}>Demographics</Text>
-              <DemographicPicker updateFilter = {props.updateFilter} age = {props.filters.age} female = {props.filters.female} male = {props.filters.male}></DemographicPicker>
+              { curFilter == 1 &&
+              (
+                <View>
+                  <Text style={styles.label}>Demographics</Text>
+                  <DemographicPicker updateFilter = {props.updateFilter} age = {props.filters.age} female = {props.filters.female} male = {props.filters.male}></DemographicPicker>
 
+
+                </View>
+              )}
+              
               {/* Skills for each sport */}
-              <Text style={styles.label}>My Skill Levels</Text>
 
-              {/* Render each skill component from the array of sports */}
-              {props.filters.sports.map((sport, index) => (
-                <SkillPicker updateFilter = {props.updateFilter} key={index} index = {index} sport = {sport} />
-              ))}
+              {curFilter == 0 && (
+                <View>
+                  <Text style={styles.label}>My Skill Levels</Text>
 
+                  {/* Render each skill component from the array of sports */}
+                  {props.filters.sports.map((sport, index) => (
+                    <SkillPicker updateFilter = {props.updateFilter} key={index} index = {index} sport = {sport} />
+                  ))}
+                </View>
+              )}
               
             </View>
           )}
