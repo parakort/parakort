@@ -95,6 +95,14 @@ devices: {
 matches: {
     type: Array,
     default: []
+},
+dislikes: {
+    type: Array,
+    default: []
+},
+likers: {
+    type: Array,
+    default: []
 }
 
 }, { strict: false })

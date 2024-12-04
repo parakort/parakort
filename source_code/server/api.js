@@ -252,12 +252,51 @@ pingUrl();
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Endpoint to unmatch two users and add to dislikes
+router.post('/unmatchUser', async (req, res) => {
+  try {
+    const { src, dest } = req.body; // Get the user IDs from the request body
+
+    // Ensure both users are provided
+    if (!src || !dest) {
+      return res.status(400).json({ error: 'Both src and dest user IDs are required' });
+    }
+
+    // First, remove dest UID from the src user's matches array and add dest to src's dislikes array
+    await User.findByIdAndUpdate(
+      src,
+      { 
+        $pull: { matches: { uid: dest } }, // Remove dest from src's matches
+        $addToSet: { dislikes: dest } // Add dest to src's dislikes (ensures no duplicates)
+      },
+      { new: true }
+    );
+
+    // Then, remove src UID from the dest user's matches array and add src to dest's dislikes array
+    await User.findByIdAndUpdate(
+      dest,
+      { 
+        $pull: { matches: { uid: src } }, // Remove src from dest's matches
+        $addToSet: { dislikes: src } // Add src to dest's dislikes (ensures no duplicates)
+      },
+      { new: true }
+    );
+
+    // Respond back indicating the unmatch was successful
+    res.status(200).json({ message: 'Users have been unmatched and added to dislikes successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'An error occurred while processing your request' });
+  }
+});
+
 // Match another user
 router.post('/matchUser', async (req, res) => {
   // check if the destination has matched the source
-  User.findById(
-    { _id: req.body.dest }, // Find the user we are trying to match
-    { matches: 1, _id: 0} 
+  User.findByIdAndUpdate(
+    req.body.dest, // Find the user by ID
+    { $addToSet: { likers: req.body.source } }, // Update the likers array
+    { projection: { matches: 1, _id: 0 }, new: false } // Return the document before the update
   )
   .then(async (user) => {
     // we found the user we want to match with
@@ -268,7 +307,6 @@ router.post('/matchUser', async (req, res) => {
 
     // Return the status of whether we are a mutual match
     res.send(mutual)
-    console.log(mutual)
 
     // Update the swiping user's matches database with this user,
     // and whether or not we are currently a mutual match.
@@ -295,12 +333,46 @@ router.post('/matchUser', async (req, res) => {
   })
 })
 
+
+// SRC DISLIKES DEST.
+// We add each other to the dislikes list
+// We know that we are not already in their dislike list, because that would trigger them being in our dislike list
+// which would prevent them for appearing on the discover page.
+router.post('/dislikeUser', async (req, res) => {
+  try {
+    await Promise.all([
+      User.findByIdAndUpdate(
+        req.body.source,
+        { $addToSet: { dislikes: req.body.dest } }
+      ),
+      User.findByIdAndUpdate(
+        req.body.dest,
+        { $addToSet: { dislikes: req.body.src } }
+      )
+    ]);
+
+    res.send("Dislike performed");
+  } catch (err) {
+    console.error(err); // Log errors
+    res.status(500).send("An error occurred while disliking the user.");
+  }
+});
+
+// Poll to get new data
+router.post('/getData', async (req, res) => {
+  const user = await User.findById(req.body.user, 'matches dislikes likers');
+  res.send(user)
+
+})
+
+
 // Suggest a user to match with
 router.post('/suggestUser', async (req, res) => {
   // we need to return a uid,
   // for now, we can pick a random user who is not yet in our suggestion history (async storage ?), or in our matches
-  let matches = req.body.matches
-  let history = req.body.history
+  const filters = req.body.filters
+  const matches = req.body.matches
+  const dislikes = req.body.dislikes
 
   // for now, just pick a random user from the database.
   const users = await User.aggregate([{ $sample: { size: 1 } }]);

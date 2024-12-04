@@ -9,6 +9,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import Discover from './Discover.js'
 import Profile from './Profile.js'
 import Matches from './Matches.js'
+import Likes from './Likes.js';
 
 const MyTheme = {
   ...DefaultTheme,
@@ -37,9 +38,9 @@ const Navigation = (props) => {
               
               if (route.name === 'Discover') {
                 iconName = focused ? 'search' : 'search-outline';
-              } else if (route.name === 'Matches') {
+              } else if (route.name === 'Likes') {
                 iconName = focused ? 'heart' : 'heart-outline';
-              } else if (route.name === 'Chat') {
+              } else if (route.name === 'Matches') {
                 iconName = focused ? 'chatbubble' : 'chatbubble-outline';
               } else if (route.name === 'Profile') {
                 iconName = focused ? 'person' : 'person-outline';
@@ -55,11 +56,11 @@ const Navigation = (props) => {
           <Tab.Screen name="Discover" children={()=>
             <Discover refreshSuggestion = {props.refreshSuggestion} swiped = {props.swiped} currentSuggestion = {props.currentSuggestion}/>}/>
 
-          <Tab.Screen name="Matches" children={()=>
-            <Matches matches = {props.matches} media = {props.media}/>}/>
+          <Tab.Screen name="Likes" children={()=>
+            <Likes onSwipeLeft = {props.unmatch} onSwipeRight = {props.matchUser} media = {props.media} likers = {props.likers} dislikes = {props.dislikes} matches = {props.matches}/>}/>
 
-          <Tab.Screen name="Chat" children={()=>
-            <Matches />}/>
+          <Tab.Screen name="Matches" children={()=>
+            <Matches  onSwipeLeft = {props.unmatch} matches = {props.matches} media = {props.media}/>}/>
 
           <Tab.Screen name="Profile" children={()=>
             <Profile updateFilter = {props.updateFilter} filters = {props.filters} updateMedia = {props.updateMedia} user = {props.user} media = {props.media} profile = {props.profile} updateProfile = {props.updateProfile} logout = {props.logout} deleteAccount = {props.deleteAccount}/>}/>

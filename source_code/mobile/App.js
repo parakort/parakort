@@ -61,6 +61,11 @@ export default function App() {
   // Where user data is stored
   const [media, setMedia] = useState(new Map())              // Links to local files of our matches, fetched synchronously
   const [matches, setMatches] = useState(null)          // UID array of our matched users
+  const [dislikes, setDislikes] = useState(null)          
+  const [likers, setLikers] = useState(null)          
+
+
+
   const [suggestions, setSuggestions] = useState(null)  // UID array of suggested users
 
   const [currentSuggestion, setCurrentSuggestion] = useState(null)  // Current suggested user media
@@ -86,6 +91,41 @@ export default function App() {
   function finishedSetup() {
     setSetupScreen(false)
   }
+
+  // Refresh
+  useEffect(() => {
+    let intervalId
+    if (user)
+    {
+      fetchData()
+      intervalId = setInterval(fetchData, 10000); // Fetch every 10 seconds
+    }
+
+    return (() => {
+      clearInterval(intervalId)
+    })
+  }, [user])
+
+  async function fetchData() {
+
+    if (user)
+    {
+      const response = await axios.post(`${BASE_URL}/getData`, {user: user._id})
+    
+        setMatches(response.data.matches)
+        setDislikes(response.data.dislikes)
+        setLikers(response.data.likers)
+
+       
+
+        // Check for changes to show a message such as new match.
+        // Can check a size difference in likers, and then, check matches for the new uid. 
+
+    }
+    
+
+  };
+
 
   // Update media item, replacing with new if existing
   // If we provide a falsey value (or nothing) to new_media param, it will delete the media at the given index and not replace it
@@ -411,7 +451,7 @@ const saveFileFromBuffer = async (media) => {
   function suggestUser() {
     // Send an array of UIDs which we are matched with (mutual is irrelevant) and 
     // (TODO) also send an array of history (users we should exclude)
-    axios.post(`${BASE_URL}/suggestUser`, {matches: matches.map(match => match.uid), history: suggestions})
+    axios.post(`${BASE_URL}/suggestUser`, {uid: user._id, filters: filters})
     .then((res) => {
       //console.log("Suggested", res.data)
 
@@ -629,6 +669,45 @@ const saveFileFromBuffer = async (media) => {
     })
   }
 
+// match a user
+function matchUser(usr)
+{
+  // move suggestions[0] to matches, useEffect should update in DB.
+  // we do not need to downloadMedia, it is already downloaded.
+
+  // Is it mutual?
+  axios.post(`${BASE_URL}/matchUser`, {source: user._id, dest: usr})
+  .then((res) => {
+    let mutual = res.data
+    // We don't need to persist to DB here, because we do it in this /matchUser api call.
+    setMatches([...matches, {uid: usr, mutual: mutual}])
+
+    if (mutual)
+    {
+      // fun effect
+      alert("Instant match!")
+    }
+    
+  })
+  .catch((e) => {
+    console.log("Error matching user:",e)
+  })
+}
+
+// unmatch a user, swiped left on our match page
+function unmatch(match)
+{
+  setMatches(prevItems => 
+    prevItems.filter(item => item.uid !== match.uid) // Filter out the item to remove
+  );
+  axios.post(`${BASE_URL}/unmatchUser`, {src: user._id, dest: match.uid})
+  .then((res) => {
+
+  })
+  .catch((e) => {
+    console.log("Error unmatching user:",e)
+  })
+}
 // We swiped on a user.
 function swiped(right)
 {
@@ -641,38 +720,31 @@ function swiped(right)
   {
     if (right)
     {
-      // move suggestions[0] to matches, useEffect should update in DB.
-      // we do not need to downloadMedia, it is already downloaded.
-
-      // Is it mutual?
-      axios.post(`${BASE_URL}/matchUser`, {source: user._id, dest: suggestions[0]})
-      .then((res) => {
-        let mutual = res.data
-        // We don't need to persist to DB here, because we do it in this /matchUser api call.
-        setMatches([...matches, {uid: suggestions[0], mutual: mutual}])
-
-        if (mutual)
-        {
-          // play fun effect
-          // ...
-        }
-        
-      })
-      .catch((e) => {
-        console.log("Error matching user:",e)
-      })
+      matchUser(suggestions[0])
 
     }
     else
     {
       // delete the media for this user
       deleteMedia(suggestions[0])
+
+      // dislike this user
+      setDislikes([...dislikes, suggestions[0]])
+      // we do this on the server, and dont just call updateField from here, because we want to trigger the other user to dislike us as well.
+      axios.post(`${BASE_URL}/dislikeUser`, {source: user._id, dest: suggestions[0]})
+      .then((res) => {
+        
+        
+      })
+      .catch((e) => {
+        console.log("Error disliking user:",e)
+      })
+
     }
   }
   // Suggest a new user, which will shift the suggestions as well
   suggestUser()
 }
-
 
 // middleware Login from login screen: Must set token because it definitely is not set
 function loggedIn(token, new_user)
@@ -710,6 +782,8 @@ function logIn(token)
     // Do this last, because it will trigger the media downloads, and we need our matches and filters
     // ready to go for downloading media and for generating suggestions.
     setProfile(res.data.user.profile)
+
+    
 
     
       // Get their current location
@@ -836,7 +910,7 @@ if (showSplash)
     return (
       <>
           {/* Navigation is the actual Screen which gets displayed based on the tab cosen */}
-          <Navigation matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
+          <Navigation matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
           
           
           {/* Help Modal */}
