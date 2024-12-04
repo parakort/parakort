@@ -334,29 +334,6 @@ router.post('/matchUser', async (req, res) => {
 })
 
 
-// SRC DISLIKES DEST.
-// We add each other to the dislikes list
-// We know that we are not already in their dislike list, because that would trigger them being in our dislike list
-// which would prevent them for appearing on the discover page.
-router.post('/dislikeUser', async (req, res) => {
-  try {
-    await Promise.all([
-      User.findByIdAndUpdate(
-        req.body.source,
-        { $addToSet: { dislikes: req.body.dest } }
-      ),
-      User.findByIdAndUpdate(
-        req.body.dest,
-        { $addToSet: { dislikes: req.body.src } }
-      )
-    ]);
-
-    res.send("Dislike performed");
-  } catch (err) {
-    console.error(err); // Log errors
-    res.status(500).send("An error occurred while disliking the user.");
-  }
-});
 
 // Poll to get new data
 router.post('/getData', async (req, res) => {

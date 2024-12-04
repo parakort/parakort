@@ -695,12 +695,18 @@ function matchUser(usr)
 }
 
 // unmatch a user, swiped left on our match page
-function unmatch(match)
+function unmatch(uid)
 {
   setMatches(prevItems => 
-    prevItems.filter(item => item.uid !== match.uid) // Filter out the item to remove
+    prevItems.filter(item => item.uid !== uid) // Filter out the item to remove
   );
-  axios.post(`${BASE_URL}/unmatchUser`, {src: user._id, dest: match.uid})
+  // delete the media for this user
+  deleteMedia(uid)
+
+  // dislike this user
+  setDislikes([...dislikes, uid])
+
+  axios.post(`${BASE_URL}/unmatchUser`, {src: user._id, dest: uid})
   .then((res) => {
 
   })
@@ -725,20 +731,8 @@ function swiped(right)
     }
     else
     {
-      // delete the media for this user
-      deleteMedia(suggestions[0])
-
-      // dislike this user
-      setDislikes([...dislikes, suggestions[0]])
-      // we do this on the server, and dont just call updateField from here, because we want to trigger the other user to dislike us as well.
-      axios.post(`${BASE_URL}/dislikeUser`, {source: user._id, dest: suggestions[0]})
-      .then((res) => {
-        
-        
-      })
-      .catch((e) => {
-        console.log("Error disliking user:",e)
-      })
+      unmatch(suggestions[0])
+      
 
     }
   }
