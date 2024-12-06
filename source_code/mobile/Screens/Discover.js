@@ -209,7 +209,7 @@ const SwipeableCard = (props) => {
           >
             <View style={styles.imageContainer}>
               <Image
-                source={{ uri: props.currentSuggestion.media[mediaIndex].uri }}
+                source={{ uri: props.currentSuggestion.media[mediaIndex]?.uri }}
                 style={styles.image}
                 onLoad={handleImageLoad}
               />
