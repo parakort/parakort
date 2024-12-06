@@ -461,7 +461,7 @@ const saveFileFromBuffer = async (media) => {
   function suggestUser() {
     // Send an array of UIDs which we are matched with (mutual is irrelevant) and 
     // (TODO) also send an array of history (users we should exclude)
-    axios.post(`${BASE_URL}/suggestUser`, {uid: user._id, filters: filters})
+    axios.post(`${BASE_URL}/suggestUser`, {uid: user._id, filters: filters, location: location})
     .then((res) => {
       //console.log("Suggested", res.data)
 
@@ -487,7 +487,17 @@ const saveFileFromBuffer = async (media) => {
 
     })
     .catch((e) => {
+      if (e.response.status == 404)
+      {
+        console.log("No suitable users")
+        // need to update suggestion array
+
+      }
+      else
+      {
       console.log("Error suggesting user", e)
+
+      }
     })
   }
 

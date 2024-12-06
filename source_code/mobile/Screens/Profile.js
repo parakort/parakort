@@ -322,7 +322,7 @@ const Profile = (props) => {
               (
                 <View>
                   <Text style={styles.label}>Demographics</Text>
-                  <DemographicPicker updateFilter = {props.updateFilter} age = {props.filters.age} female = {props.filters.female} male = {props.filters.male}></DemographicPicker>
+                  <DemographicPicker radius = {props.filters.radius} updateFilter = {props.updateFilter} age = {props.filters.age} female = {props.filters.female} male = {props.filters.male}></DemographicPicker>
 
 
                 </View>

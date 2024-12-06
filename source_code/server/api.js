@@ -343,31 +343,60 @@ router.post('/getData', async (req, res) => {
 })
 
 
-// Suggest a user to match with
 router.post('/suggestUser', async (req, res) => {
-  // we need to return a uid,
-  // for now, we can pick a random user who is not yet in our suggestion history (async storage ?), or in our matches
-  const filters = req.body.filters
-  const matches = req.body.matches
-  const dislikes = req.body.dislikes
+  const filters = req.body.filters;
+  const matches = req.body.matches || [];
+  const dislikes = req.body.dislikes || [];
 
-  // for now, just pick a random user from the database.
-  const users = await User.aggregate([{ $sample: { size: 1 } }]);
+  try {
+    // Build a query object based on filters
+    const query = {
+      _id: { $nin: [...matches, ...dislikes] }, // Exclude matches and dislikes
+      'profile.birthdate': { 
+        $gte: new Date(new Date().setFullYear(new Date().getFullYear() - filters.age.max)), 
+        $lte: new Date(new Date().setFullYear(new Date().getFullYear() - filters.age.min))
+      },
+      ...(filters.male || filters.female
+        ? { 'profile.isMale': filters.male ? true : { $ne: true } } // Match gender if specified
+        : {}),
+      location: {
+        $geoWithin: {
+          $centerSphere: [
+            [req.body.location.lon, req.body.location.lat], 
+            filters.radius / 3963.2 // Convert radius to radians (earth radius in miles)
+          ]
+        }
+      },
+      $or: filters.sports
+        .filter(sport => sport.my_level > 0)
+        .map(sport => ({
+          $and: [
+            { 'filters.sports.sportId': sport.sportId },
+            { 'filters.sports.my_level': { $in: sport.match_level } },
+          ]
+        }))
+    };
 
-  // TODO
-  // If my_level is > 0 for a sport, search for someone who plays that sport
-  // If my_level is 0, don't search for a player that plays that sport, even if we have match_level array with levels in it.
-  // We can still find someone who plays that sport, but only if they match some other critera (other sport search succeeds)
+    // Perform the query with a priority for sports matches
+    let users = await User.find(query).limit(1).exec();
 
-  // Check if a user was found
-  if (users.length > 0) {
-    res.send(users[0]._id)
-    return;
-  } 
-  
-  // There were no users found
-  res.status(404).send("No users found")
-})
+    // If no users match with the sports filters, fall back to basic filters
+    // if (users.length === 0) {
+    //   delete query.$or; // Remove sports-specific filtering
+    //   users = await User.find(query).limit(1).exec();
+    // }
+
+    if (users.length > 0) {
+      res.send(users[0]._id);
+    } else {
+      res.status(404).send('No users found');
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error finding a user');
+  }
+});
+
 
 // Delete media at a given index
 router.post('/deleteMedia', async (req,res) => {

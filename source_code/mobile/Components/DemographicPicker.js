@@ -7,11 +7,11 @@ import Slider from '@react-native-community/slider';
 const DemographicPicker = (props) => {
 
 
-
   const [minAge, setMinAge] = useState(props.age.min)
   const [maxAge, setMaxAge] = useState(props.age.max)
   const [male, setMale] = useState(props.male)
   const [female, setFemale] = useState(props.female)
+  const [radius, setRadius] = useState(props.radius)
 
 
   
@@ -28,6 +28,7 @@ const DemographicPicker = (props) => {
     <View style = {styles.skillContainer}>
       
 
+      <View style = {{display: "flex", flexDirection: "row", justifyContent: "space-between"}}>
           <View style = {styles.ageContainer}>
             <Text >Min Age: {minAge}</Text>
 
@@ -90,6 +91,24 @@ const DemographicPicker = (props) => {
 
             </View>
 
+            </View>
+
+            <Text>Search Radius: {radius} miles</Text>
+
+            <Slider
+              minimumValue={1}
+              maximumValue={99}
+              step={1}
+              value={radius}
+              onValueChange={value => {
+                setRadius(value); 
+                
+              
+              }} // Update state on slider change
+              onSlidingComplete={value => {
+                props.updateFilter('radius', value);
+              }}
+            />
         </View>
       
   );
@@ -111,12 +130,12 @@ const styles = StyleSheet.create({
   },
   skillContainer: {
     display: "flex",
-    flexDirection: "row",
+    flexDirection: "column",
     backgroundColor: config.app.theme.creme,
     borderRadius: 15,
     borderColor: config.app.theme.black,
     borderWidth: 1,
-    height: 125,
+    height: "60%",
     marginVertical: 5,
     padding: "3%",
   },
