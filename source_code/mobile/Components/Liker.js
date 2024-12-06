@@ -9,12 +9,20 @@ const Liker = (props) => {
   const [mediaIndex, setMediaIndex] = useState(0)
 
   const styles = StyleSheet.create({
+    bio : {
+      marginTop: "10%"
+    },
+    name: {
+      fontSize: 15,
+      fontWeight: "200",
+      marginBottom: "2%"
+    },
     arrowButton: {
       position: 'absolute',
-      top: '50%',
+      top: '60%',
       backgroundColor: 'gray',
-      width: 40,
-      height: 40,
+      width: 20,
+      height: 20,
       borderRadius: 20,
       justifyContent: 'center',
       alignItems: 'center',
@@ -23,37 +31,36 @@ const Liker = (props) => {
     },
     leftArrow: {
       display: mediaIndex > 0 ? "flex" : "none",
-      left: 10,
+      left: 5,
     },
     rightArrow: {
-      display: mediaIndex < props.currentSuggestion?.media.length - 1 ? "flex" : "none",
-      right: 10,
+      display: mediaIndex < props.media.media.length - 1 ? "flex" : "none",
+      right: 5,
     },
     arrowText: {
       color: 'white',
-      fontSize: 20,
+      fontSize: 15,
       fontWeight: 'bold',
     },
     imageContainer: {
-      
+      height: "90%"
     },
     container: {
       display: "flex",
       flexDirection: "row",
-      justifyContent: "space-between",
       backgroundColor: config.app.theme.creme,
       borderRadius: 15,
       borderColor: config.app.theme.black,
       borderWidth: 1,
       height: "40%",
-      marginVertical: 5,
-      padding: "3%",
+      padding: "2%",
     },
     imageStyle: {
       aspectRatio: 0.7,
       borderColor: config.app.theme.black,
       borderWidth: 1,
       borderRadius: 10,
+      height: "100%"
     },
     skillContainer: {
       width: "100%",
@@ -101,36 +108,40 @@ const Liker = (props) => {
         style={[styles.container, { transform: [{ translateX: pan.x }, { translateY: pan.y }] }]}
         {...panResponder.panHandlers}
       >
+        {/* Left contaner : Image and socials */}
         <View style = {{display: "flex", flexDirection: "column"}}>
-        <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: props.media.media[0].uri }}
-            style={styles.imageStyle}
-          />
+          <View style={styles.imageContainer}>
+            <Image
+              source={{ uri: props.media.media[mediaIndex].uri }}
+              style={styles.imageStyle}
+            />
 
-          {/* Left Arrow */}
-          <TouchableOpacity style={[styles.arrowButton, styles.leftArrow]} onPress={() => setMediaIndex(mediaIndex - 1)}>
-            <Text style={styles.arrowText}>{"<"}</Text>
-          </TouchableOpacity>
-          
-          {/* Right Arrow */}
-          <TouchableOpacity style={[styles.arrowButton, styles.rightArrow]} onPress={() => setMediaIndex(mediaIndex + 1)}>
-            <Text style={styles.arrowText}>{">"}</Text>
-          </TouchableOpacity>
+            {/* Left Arrow */}
+            <TouchableOpacity style={[styles.arrowButton, styles.leftArrow]} onPress={() => setMediaIndex(mediaIndex - 1)}>
+              <Text style={styles.arrowText}>{"<"}</Text>
+            </TouchableOpacity>
+            
+            {/* Right Arrow */}
+            <TouchableOpacity style={[styles.arrowButton, styles.rightArrow]} onPress={() => setMediaIndex(mediaIndex + 1)}>
+              <Text style={styles.arrowText}>{">"}</Text>
+            </TouchableOpacity>
 
-          
+            
+
+          </View>
+
+          <SocialButtons horizontal = {true} socials={props.media.profile.socials} />
 
         </View>
 
-    <SocialButtons horizontal = {true} socials={props.media.profile.socials} />
-
-        </View>
-
-        <View style={{ display: "flex", flexDirection: "column"}}>
-          <Text>{props.media.profile.firstName} {props.media.profile.lastName}</Text>
+        {/* Right container: Name, age, sports, description */}
+        <View style={{ display: "flex", flexDirection: "column", flex: 1, marginLeft: "2%", alignItems: "center"}}>
+          <Text style = {styles.name}>{props.media.profile.firstName} {props.media.profile.lastName}, {props.media.profile.age}</Text>
           <View style = {styles.skillContainer}>
             <SkillLevels sports = {props.media.sports}></SkillLevels>
           </View>
+
+          <Text style = {styles.bio}>{props.media.profile.bio}</Text>
 
         </View>
 

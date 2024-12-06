@@ -7,13 +7,13 @@ const SocialButtons = ({socials, horizontal}) => {
         iconContainer: {
           display: "flex",
           flexDirection: horizontal ? "row" : "column",
-          justifyContent: "space-evenly",
-          borderColor: "red",
-          borderWidth: 1
+          justifyContent: horizontal ? "space-between" : "space-evenly",
+          padding: horizontal ? "3%" : 0
           
         },
         icon: {
-          height: "50%",
+          height: horizontal? "auto" : "50%",
+          width: horizontal? 24 : "auto",
           aspectRatio: 1,
           resizeMode: "contain",
           top: !horizontal? "37.5%": "auto",

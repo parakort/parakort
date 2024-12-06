@@ -28,7 +28,7 @@ const SwipeableCard = (props) => {
     imageContainer: {
       flex: 1,
       marginBottom: 20, // 20px space between image and description
-      position: 'relative',
+      
     },
     image: {
       width: '100%',
