@@ -1,20 +1,22 @@
 import { View, Image, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 
-const SocialButtons = ({socials}) => {
+const SocialButtons = ({socials, horizontal}) => {
 
     const styles = StyleSheet.create({
     
         iconContainer: {
           display: "flex",
-          flexDirection: "column",
+          flexDirection: horizontal ? "row" : "column",
           justifyContent: "space-evenly",
+          borderColor: "red",
+          borderWidth: 1
           
         },
         icon: {
           height: "50%",
           aspectRatio: 1,
           resizeMode: "contain",
-          top: "37.5%",
+          top: !horizontal? "37.5%": "auto",
         }
       });
 

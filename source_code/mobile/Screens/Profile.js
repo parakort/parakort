@@ -62,6 +62,12 @@ const Profile = (props) => {
       setModalVisible(true)
     }
 
+    // Undo dislikes
+    function handleUndoDislikes()
+    {
+      props.updateField("dislikes", [])
+    }
+
 
     
 
@@ -348,6 +354,22 @@ const Profile = (props) => {
 
             </View>
 
+
+            {/* Bottom container */}
+        <View>
+          <View style={styles.buttonContainer}>
+            
+
+            <TouchableOpacity
+              style={styles.buttonWithBorder}
+              onPress={handleUndoDislikes}
+            >
+              <Text style={styles.buttonText}>Undo Dislikes</Text>
+            </TouchableOpacity>
+
+
+        </View>
+
         <View style={styles.buttonContainer}>
             
             <TouchableOpacity
@@ -367,6 +389,7 @@ const Profile = (props) => {
 
         </View>
             
+            </View>
             </View>
           )}
           

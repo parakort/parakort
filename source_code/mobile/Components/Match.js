@@ -5,6 +5,7 @@ import {
   Animated,
   PanResponder,
   StyleSheet,
+  Image,
 } from 'react-native';
 import config from "../app.json";
 import SocialButtons from './SocialButtons';
@@ -46,7 +47,7 @@ const Match = (props) => {
 
   return (
     <Animated.View
-      style={[styles.swipeableContainer, { transform: [{ translateX }] }]}
+      style={{ transform: [{ translateX }] }}
       {...panResponder.panHandlers}
     >
       <View style={styles.container}>
@@ -76,19 +77,6 @@ const Match = (props) => {
 };
 
 const styles = StyleSheet.create({
-  swipeableContainer: {
-    display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: config.app.theme.creme,
-    borderRadius: 15,
-    borderColor: config.app.theme.black,
-    borderWidth: 1,
-    height: 125,
-    marginVertical: 5,
-    padding: '3%',
-    alignItems: 'center',
-  },
   container: {
     display: 'flex',
     flexDirection: 'row',

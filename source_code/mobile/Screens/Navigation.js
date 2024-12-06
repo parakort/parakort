@@ -63,7 +63,7 @@ const Navigation = (props) => {
             <Matches  onSwipeLeft = {props.unmatch} matches = {props.matches} media = {props.media}/>}/>
 
           <Tab.Screen name="Profile" children={()=>
-            <Profile updateFilter = {props.updateFilter} filters = {props.filters} updateMedia = {props.updateMedia} user = {props.user} media = {props.media} profile = {props.profile} updateProfile = {props.updateProfile} logout = {props.logout} deleteAccount = {props.deleteAccount}/>}/>
+            <Profile updateField = {props.updateField} updateFilter = {props.updateFilter} filters = {props.filters} updateMedia = {props.updateMedia} user = {props.user} media = {props.media} profile = {props.profile} updateProfile = {props.updateProfile} logout = {props.logout} deleteAccount = {props.deleteAccount}/>}/>
        
         </Tab.Navigator>
     </NavigationContainer>

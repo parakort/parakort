@@ -559,7 +559,7 @@ router.post('/uploadMedia', upload.single('file'), async (req, res) => {
   // Database update endpoint
   // Updates the provided 'field' with the given 'newValue'.
   // need to only permit certain fields: cosmetic ones that can be exposed to frontend
-  const allowedFields = ['location', 'filters', 'profile'];
+  const allowedFields = ['location', 'filters', 'profile', 'dislikes'];
 
 router.post('/updateField', async (req, res) => {
     const { uid, field, newValue } = req.body;

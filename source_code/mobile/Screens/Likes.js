@@ -21,9 +21,7 @@ const Likes = (props) => {
               !matchUids.includes(liker)    // Exclude if in matches array
           )
           .map((liker, index) => (
-            <View key={index} style={{ marginBottom: 10 }}>
               <Liker onSwipeLeft = {props.onSwipeLeft} onSwipeRight = {props.onSwipeRight} key={index} index={index} liker={liker} media={props.media.get(liker)} />
-            </View>
           ))}
       </View>
     );
