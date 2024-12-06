@@ -1,8 +1,9 @@
 
-import {AppState, Platform, Modal, View, StyleSheet, Text, TouchableOpacity, TextInput, TouchableWithoutFeedback, Keyboard, Linking, Image} from 'react-native';
+import {AppState, Platform, Modal, View, Button, Text, TouchableOpacity, TextInput, TouchableWithoutFeedback, Keyboard, Linking, Image} from 'react-native';
 import Navigation from './Screens/Navigation';
 import Login from './Components/Login';
 import Setup from './Components/Setup.js';
+import ConfettiScreen from './Components/ConfettiScreen.js';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState, useEffect, useRef } from 'react'
@@ -32,11 +33,20 @@ const GOOG_API = "goog_NxhhAZhHJkJSHDfsFAPtYIyEClP"
 
 export default function App() {
 
-  // useEffect(() => {
-  //   NetworkInfo.getIPV4Address().then(ipv4Address => {
-  //     console.log(ipv4Address)
-  //   });
-  // }, []);
+
+
+  // Confetti effect
+  const [triggerEffect, setTriggerEffect] = useState(false);
+
+  const handleTriggerEffect = () => {
+    setTriggerEffect(true); // Trigger the effect
+  };
+
+  const handleEffectComplete = () => {
+    setTriggerEffect(false); // Reset trigger for future use
+  };
+
+
 
   const [authenticated, setAuthenticated] = useState(false)
   const [setupScreen, setSetupScreen] = useState(true)
@@ -685,7 +695,7 @@ function matchUser(usr)
     if (mutual)
     {
       // fun effect
-      alert("Instant match!")
+      handleTriggerEffect()
     }
     
   })
@@ -906,6 +916,12 @@ if (showSplash)
           {/* Navigation is the actual Screen which gets displayed based on the tab cosen */}
           <Navigation updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
           
+          {/* Confetti Screen */}
+          <ConfettiScreen
+            trigger={triggerEffect}
+            onComplete={handleEffectComplete}
+            message="Instant Match!"
+          />
           
           {/* Help Modal */}
           <Modal

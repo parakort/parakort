@@ -23,6 +23,7 @@
     "mega": "^0.2.0",
     "react": "18.2.0",
     "react-native": "0.73.6",
+    "react-native-confetti-cannon": "^1.5.2",
     "react-native-confirmation-code-input": "^1.0.4",
     "react-native-date-picker": "^5.0.5",
     "react-native-device-info": "^11.1.0",
