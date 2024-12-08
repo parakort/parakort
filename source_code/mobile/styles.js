@@ -1,4 +1,6 @@
 import { StyleSheet, Platform } from 'react-native';
+import config from "./app.json"
+
 
 export default StyleSheet.create({
     buttonText: {
@@ -54,5 +56,14 @@ titleContainer: {
     flex:1,
     marginTop: 60,
     margin: '5%'
-  }
+  },
+
+  buttonWithBorder: {
+    backgroundColor: config.app.theme.grey,
+    padding: 15,
+    margin: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

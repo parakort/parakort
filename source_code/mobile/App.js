@@ -37,6 +37,8 @@ export default function App() {
 
   // Confetti effect
   const [triggerEffect, setTriggerEffect] = useState(false);
+  const [haltSuggestLoop, setHaltSuggestLoop] = useState(false);
+
 
   const handleTriggerEffect = () => {
     setTriggerEffect(true); // Trigger the effect
@@ -357,6 +359,18 @@ const saveFileFromBuffer = async (media) => {
   }
 };
 
+// remove the lock on the suggest loop and try again
+function resumeSuggestLoop()
+{
+  if (haltSuggestLoop)
+  {
+    setHaltSuggestLoop(false)
+    suggestUser()
+  } 
+
+  }
+
+
   
   // The following side effects persist data to mongo
   // Data is automatically persisted when updating a value with state.
@@ -369,6 +383,7 @@ const saveFileFromBuffer = async (media) => {
     if (location) 
     {
       updateField("location", location)
+      resumeSuggestLoop() // incase our new location filter allows for more users
     }
     
   }, [location])
@@ -380,6 +395,10 @@ const saveFileFromBuffer = async (media) => {
     if (filters && filters !== prevFilters.current) {
       updateField("filters", filters)
       prevFilters.current = filters;
+
+      // Remove the lock on the loop if it exists, because our filters changed
+      resumeSuggestLoop()
+      
     } 
     
   }, [filters])
@@ -392,7 +411,7 @@ const saveFileFromBuffer = async (media) => {
     {
 
       // Do we need to generate more? Recurse if so.
-      if (suggestions.length < QUEUE_LEN) suggestUser()
+      if ((suggestions.length < QUEUE_LEN) && !haltSuggestLoop) suggestUser()
     }
     
 
@@ -459,6 +478,12 @@ const saveFileFromBuffer = async (media) => {
   // Suggest new user
   // will grab an ID to suggest, add it to the array, and download their media
   function suggestUser() {
+    if (!location)
+    {
+      // Location didn't load yet, quit. This function will be called again
+      setLocation(location)
+      return
+    }
     // Send an array of UIDs which we are matched with (mutual is irrelevant) and 
     // (TODO) also send an array of history (users we should exclude)
     axios.post(`${BASE_URL}/suggestUser`, {uid: user._id, filters: filters, location: location})
@@ -475,14 +500,17 @@ const saveFileFromBuffer = async (media) => {
 
         // Add the new item to the end of the new array
         newArray.push(res.data);
+
+        // Set with async storage
+        AsyncStorage.setItem('suggestions', JSON.stringify(newArray))
+
+        // Set the new currentSuggestion to be the user in front of the queue
+        setCurrentSuggestion(media.get(newArray[0]))
+
         return newArray;
       });
 
-      // Set with async storage
-      AsyncStorage.setItem('suggestions', JSON.stringify(suggestions))
-
-      // Set the new currentSuggestion to be the user in front of the queue
-      setCurrentSuggestion(media.get(suggestions[0]))
+      
 
 
     })
@@ -491,6 +519,31 @@ const saveFileFromBuffer = async (media) => {
       {
         console.log("No suitable users")
         // need to update suggestion array
+        setSuggestions(prevSuggestions => {
+          // Create a new array by removing the first item
+          const newArray = prevSuggestions.slice(1)
+
+          // True if we ran out suggestions and can not find any more
+          if (newArray.length < 1)
+          {
+            // Halt the loop since we know there is nobody else to find
+            setHaltSuggestLoop(true)
+            // We eventually need to reset this and suggest more users, perhaps when filters change
+            // It will automatically be reset to false and try to suggest when the app restarts
+            // But we need to also reset this if A) user filters change B) user clicks try again button
+
+            setCurrentSuggestion(null)
+            AsyncStorage.setItem('suggestions', JSON.stringify([]))
+
+            return []
+
+          }
+  
+          setCurrentSuggestion(media.get(newArray[0]))
+          AsyncStorage.setItem('suggestions', JSON.stringify(newArray))
+
+          return newArray;
+        });
 
       }
       else
@@ -503,8 +556,7 @@ const saveFileFromBuffer = async (media) => {
 
   async function refreshSuggestion()
   {
-    
-    setCurrentSuggestion(await downloadMediaFiles(suggestions[0]))
+    if (suggestions[0]) setCurrentSuggestion(await downloadMediaFiles(suggestions[0]))
   }
 
   // Delete media by uid: Aside from expiry, we can delete a media object (user profile and their media ) directly
@@ -924,7 +976,7 @@ if (showSplash)
     return (
       <>
           {/* Navigation is the actual Screen which gets displayed based on the tab cosen */}
-          <Navigation updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
+          <Navigation resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
           
           {/* Confetti Screen */}
           <ConfettiScreen

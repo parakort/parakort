@@ -5,6 +5,7 @@ import app_styles from '../styles';
 import config from "../app.json"
 import SocialButtons from '../Components/SocialButtons';
 import SkillLevels from '../Components/SkillLevels';
+import NoUsers from '../Components/NoUsers';
 
 
 
@@ -243,6 +244,14 @@ const SwipeableCard = (props) => {
       </GestureHandlerRootView>
     </SafeAreaView>
   );
+
+  else if (!props.currentSuggestion)
+  {
+    return (
+      <NoUsers resumeSuggestLoop = {props.resumeSuggestLoop} loading = {!props.haltSuggestLoop}></NoUsers>
+    )
+    
+  }
 
   // Error loading media: downloadAgain
   else

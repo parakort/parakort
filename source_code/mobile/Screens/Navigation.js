@@ -54,7 +54,7 @@ const Navigation = (props) => {
           })}
         >
           <Tab.Screen name="Discover" children={()=>
-            <Discover refreshSuggestion = {props.refreshSuggestion} swiped = {props.swiped} currentSuggestion = {props.currentSuggestion}/>}/>
+            <Discover resumeSuggestLoop = {props.resumeSuggestLoop} haltSuggestLoop = {props.haltSuggestLoop} refreshSuggestion = {props.refreshSuggestion} swiped = {props.swiped} currentSuggestion = {props.currentSuggestion}/>}/>
 
           <Tab.Screen name="Likes" children={()=>
             <Likes onSwipeLeft = {props.unmatch} onSwipeRight = {props.matchUser} media = {props.media} likers = {props.likers} dislikes = {props.dislikes} matches = {props.matches}/>}/>
