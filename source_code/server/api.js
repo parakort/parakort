@@ -13,7 +13,8 @@
   const nodemailer = require('nodemailer');
   let userSports
   let mega
-  
+  const mongoose = require('mongoose');
+  const { Types: { ObjectId } } = mongoose;
 
   // image uploads
   const multer = require('multer');
@@ -347,55 +348,135 @@ router.post('/suggestUser', async (req, res) => {
   const filters = req.body.filters;
   const matches = req.body.matches || [];
   const dislikes = req.body.dislikes || [];
+  const location = req.body.location;
+  const verboseLogs = false // Set to true to enable detailed logs
 
   try {
+    if (verboseLogs) {
+      console.log("Filters received:", JSON.stringify(filters, null, 2));
+      console.log("Matches excluded:", matches);
+      console.log("Dislikes excluded:", dislikes);
+      console.log("User location:", location);
+    }
+
     // Build a query object based on filters
+    const ageMinDate = new Date(new Date().setFullYear(new Date().getFullYear() - filters.age.max));
+    const ageMaxDate = new Date(new Date().setFullYear(new Date().getFullYear() - filters.age.min));
+
     const query = {
       _id: { $nin: [...matches, ...dislikes] }, // Exclude matches and dislikes
-      'profile.birthdate': { 
-        $gte: new Date(new Date().setFullYear(new Date().getFullYear() - filters.age.max)), 
-        $lte: new Date(new Date().setFullYear(new Date().getFullYear() - filters.age.min))
-      },
+      // 'profile.birthdate': { $gte: ageMinDate, $lte: ageMaxDate },
       ...(filters.male || filters.female
-        ? { 'profile.isMale': filters.male ? true : { $ne: true } } // Match gender if specified
+        ? { 'profile.isMale': filters.male && filters.female ? { $in: [true, false] } : filters.male ? true : { $ne: true } } // Match gender if specified
         : {}),
       location: {
         $geoWithin: {
           $centerSphere: [
-            [req.body.location.lon, req.body.location.lat], 
+            [location.lat, location.lon], 
             filters.radius / 3963.2 // Convert radius to radians (earth radius in miles)
           ]
         }
       },
-      $or: filters.sports
-        .filter(sport => sport.my_level > 0)
-        .map(sport => ({
-          $and: [
-            { 'filters.sports.sportId': sport.sportId },
-            { 'filters.sports.my_level': { $in: sport.match_level } },
-          ]
-        }))
+      
+      $or: filters.sports.map(sport => {
+        if (verboseLogs) {
+          console.log(`\nChecking sport: ${sport.sportId.name}`);
+          console.log(`- Sport ID: ${sport.sportId._id}`);
+          console.log(`- User's level: ${sport.my_level}`);
+          console.log(`- Match levels: ${sport.match_level.join(", ")}`);
+          console.log(`- Querying for sportId: ${sport.sportId._id} and levels: ${sport.match_level}`);
+        }
+      
+        const objId = new ObjectId(sport.sportId._id)
+      
+      
+        return {
+          "filters.sports": {
+            $elemMatch: {
+              "sportId": objId, // Ensure we're matching the correct sportId
+              "my_level": { $in: sport.match_level } // Ensure my_level is in the match_level array
+            }
+          }
+        };
+      }),
+      
     };
+
+
+    if (verboseLogs) {
+      console.log("Interpreted Query:");
+      console.log(`Looking for users born between ${ageMinDate.toDateString()} and ${ageMaxDate.toDateString()}.`);
+      console.log(`Gender preference: ${filters.male && filters.female ? "Any" : filters.male ? "Male" : filters.female ? "Female" : "None"}.`);
+      console.log(`Within a radius of ${filters.radius} miles of (${location.lat}, ${location.lon}).`);
+      console.log("Sports preferences:");
+      filters.sports.forEach(sport => {
+        if (sport.my_level > 0) {
+          console.log(`- ${sport.sportId}: User level ${sport.my_level}, matching levels: ${sport.match_level.join(", ")}`);
+        }
+      });
+    }
 
     // Perform the query with a priority for sports matches
     let users = await User.find(query).limit(1).exec();
 
-    // If no users match with the sports filters, fall back to basic filters
-    // if (users.length === 0) {
-    //   delete query.$or; // Remove sports-specific filtering
-    //   users = await User.find(query).limit(1).exec();
-    // }
-
     if (users.length > 0) {
+      if (verboseLogs) {
+        const matchedUser = users[0];
+
+        console.log("\nMatch Found:");
+        console.log(`User ID: ${matchedUser._id}`);
+        console.log(`Age: ${new Date().getFullYear() - new Date(matchedUser.profile.birthdate).getFullYear()}`);
+        console.log(`Gender: ${matchedUser.profile.isMale ? "Male" : "Female"}`);
+        console.log("Location:", matchedUser.location);
+
+      }
       res.send(users[0]._id);
     } else {
+      if (verboseLogs) {
+        console.log("\nNo Matches Found:");
+        console.log("Reasons:");
+
+        const allUsers = await User.find({}).exec();
+
+        allUsers.forEach(user => {
+          if (matches.includes(user._id) || dislikes.includes(user._id)) {
+            console.log(`- User ${user._id} is in matches or dislikes.`);
+          } else if (user.profile.birthdate < ageMinDate || user.profile.birthdate > ageMaxDate) {
+            console.log(`- User ${user._id} does not match the age range.`);
+          } else if ((filters.male && filters.female === false && !user.profile.isMale) || (filters.female && filters.male === false && user.profile.isMale)) {
+            console.log(`- User ${user._id} does not match the gender preference.`);
+          } else if (!isWithinRadius(user.location, location, filters.radius)) {
+            console.log(`- User ${user._id} is outside the radius.`);
+          } else {
+            console.log(`- User ${user._id} does not match sports preferences.`);
+            
+          }
+        });
+      }
       res.status(404).send('No users found');
     }
   } catch (err) {
-    console.error(err);
+    console.error("Error during user suggestion:", err);
     res.status(500).send('Error finding a user');
   }
 });
+
+
+function isWithinRadius(userLocation, centerLocation, radiusMiles) {
+  const earthRadiusMiles = 3963.2;
+  const latDiff = (userLocation.lat - centerLocation.lat) * (Math.PI / 180);
+  const lonDiff = (userLocation.lon - centerLocation.lon) * (Math.PI / 180);
+  const a = Math.sin(latDiff / 2) ** 2 +
+            Math.cos(centerLocation.lat * (Math.PI / 180)) * Math.cos(userLocation.lat * (Math.PI / 180)) *
+            Math.sin(lonDiff / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = earthRadiusMiles * c;
+  return distance <= radiusMiles;
+}
+
+
+
+
 
 
 // Delete media at a given index

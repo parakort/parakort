@@ -63,21 +63,11 @@ const SkillPicker = (props) => {
             <TouchableOpacity
               style={[
                 styles.levelButton,
-                { backgroundColor: matchSkillLevels.includes(0) ? config.app.theme.blue : config.app.theme.grey }
-              ]}
-              onPress={() => handleLevelPress(0)}
-            >
-              <Text style={{ color: config.app.theme.black }}>BEG</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.levelButton,
                 { backgroundColor: matchSkillLevels.includes(1) ? config.app.theme.blue : config.app.theme.grey }
               ]}
               onPress={() => handleLevelPress(1)}
             >
-              <Text style={{ color: config.app.theme.black }}>INT</Text>
+              <Text style={{ color: config.app.theme.black }}>BEG</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -86,6 +76,16 @@ const SkillPicker = (props) => {
                 { backgroundColor: matchSkillLevels.includes(2) ? config.app.theme.blue : config.app.theme.grey }
               ]}
               onPress={() => handleLevelPress(2)}
+            >
+              <Text style={{ color: config.app.theme.black }}>INT</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.levelButton,
+                { backgroundColor: matchSkillLevels.includes(3) ? config.app.theme.blue : config.app.theme.grey }
+              ]}
+              onPress={() => handleLevelPress(3)}
             >
               <Text style={{ color: config.app.theme.black }}>ADV</Text>
             </TouchableOpacity>
