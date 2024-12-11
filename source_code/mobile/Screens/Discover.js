@@ -6,7 +6,7 @@ import config from "../app.json"
 import SocialButtons from '../Components/SocialButtons';
 import SkillLevels from '../Components/SkillLevels';
 import NoUsers from '../Components/NoUsers';
-
+import Loading from '../Components/Loading'
 
 
 
@@ -247,9 +247,12 @@ const SwipeableCard = (props) => {
 
   else if (!props.currentSuggestion)
   {
+    if (props.haltSuggestLoop)
     return (
       <NoUsers resumeSuggestLoop = {props.resumeSuggestLoop} loading = {!props.haltSuggestLoop}></NoUsers>
     )
+
+    return <Loading></Loading>
     
   }
 

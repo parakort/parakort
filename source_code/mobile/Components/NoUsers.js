@@ -26,6 +26,7 @@ const NoUsers = (props) => {
                         onPress={() => {props.resumeSuggestLoop()}}
                         >
                         <Text style={{color: config.app.theme.blue}}>{props.loading ? "Trying..." : "Try Again"}</Text>
+                       
                     </TouchableOpacity>
                 </View>
 

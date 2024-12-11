@@ -360,15 +360,28 @@ const saveFileFromBuffer = async (media) => {
 };
 
 // remove the lock on the suggest loop and try again
-function resumeSuggestLoop()
+function resumeSuggestLoop(clearSuggestions)
 {
+  // If we were unable to match with users
   if (haltSuggestLoop)
   {
     setHaltSuggestLoop(false)
     suggestUser()
+
+
   } 
+  // if we were able to match (we have matches) but we changed filters,
+  // we need to empty suggestions and restart.
+  // I think i should keep the first, because we can avoid the loading screen, and it will likely still meet our filters
+  else if (clearSuggestions && suggestions)
+  {
+    setSuggestions((prevItems) => prevItems.slice(0, 1));
+    
+    suggestUser()
 
   }
+
+}
 
 
   
@@ -383,35 +396,81 @@ function resumeSuggestLoop()
     if (location) 
     {
       updateField("location", location)
-      resumeSuggestLoop() // incase our new location filter allows for more users
+      resumeSuggestLoop(true) // incase our new location filter allows for more users
     }
     
   }, [location])
 
   
   useEffect(() => {
-    
     // Ignores the first update (does not persist), because that is the one coming from the database (would be redundant).
-    if (filters && filters !== prevFilters.current) {
-      updateField("filters", filters)
-      prevFilters.current = filters;
+    if (!!filters && !!prevFilters.current && !deepEqual(filters, prevFilters.current)) {
 
-      // Remove the lock on the loop if it exists, because our filters changed
-      resumeSuggestLoop()
-      
-    } 
-    
-  }, [filters])
+        updateField("filters", filters);
+
+        // Remove the lock on the loop if it exists, because our filters changed
+        resumeSuggestLoop(true);
+    }
+
+    if (filters) prevFilters.current = JSON.parse(JSON.stringify(filters)); // Deep copy of filters
+
+}, [filters]);
+
+
+  // Check if filters really changed
+  function deepEqual(obj1, obj2) {
+    return JSON.stringify(obj1) === JSON.stringify(obj2);
+  }
+
+  // Helper function to log differences between two objects
+function logDifferences(obj1, obj2, log) {
+  const differences = [];
+  
+  // Compare keys in obj1
+  for (const key in obj1) {
+    if (JSON.stringify(obj1[key]) !== JSON.stringify(obj2[key])) {
+      differences.push({ key, obj1: obj1[key], obj2: obj2[key] });
+    }
+  }
+
+  // Compare keys in obj2 that might not exist in obj1
+  for (const key in obj2) {
+    if (!(key in obj1)) {
+      differences.push({ key, obj1: undefined, obj2: obj2[key] });
+    }
+  }
+
+  // Log the differences
+  if (log)
+  {
+    if (differences.length > 0) 
+      differences.forEach(diff => {
+        console.log(`Key: ${diff.key}`);
+        console.log(`prevFilters.current:`, diff.obj1);
+        console.log(`filters:`, diff.obj2);
+      });
+
+
+    else console.log("No differences found.");
+  }
+ 
+  return differences
+  
+}
 
   // Recursive loop to suggest users for a match
   // Their media is downloaded beforehand
   useEffect(() => {
 
+    // This if statement doesnt allow us to check if we need to download suggestions on our first app open
     if (suggestions)
     {
+      AsyncStorage.setItem('suggestions', JSON.stringify(suggestions))
 
       // Do we need to generate more? Recurse if so.
-      if ((suggestions.length < QUEUE_LEN) && !haltSuggestLoop) suggestUser()
+      if ((suggestions.length < QUEUE_LEN) && !haltSuggestLoop) {
+        suggestUser()
+      }
     }
     
 
@@ -481,7 +540,6 @@ function resumeSuggestLoop()
     if (!location)
     {
       // Location didn't load yet, quit. This function will be called again
-      setLocation(location)
       return
     }
     // Send an array of UIDs which we are matched with (mutual is irrelevant) and 
@@ -500,9 +558,6 @@ function resumeSuggestLoop()
 
         // Add the new item to the end of the new array
         newArray.push(res.data);
-
-        // Set with async storage
-        AsyncStorage.setItem('suggestions', JSON.stringify(newArray))
 
         // Set the new currentSuggestion to be the user in front of the queue
         setCurrentSuggestion(media.get(newArray[0]))
@@ -533,14 +588,12 @@ function resumeSuggestLoop()
             // But we need to also reset this if A) user filters change B) user clicks try again button
 
             setCurrentSuggestion(null)
-            AsyncStorage.setItem('suggestions', JSON.stringify([]))
 
             return []
 
           }
   
           setCurrentSuggestion(media.get(newArray[0]))
-          AsyncStorage.setItem('suggestions', JSON.stringify(newArray))
 
           return newArray;
         });
@@ -810,6 +863,7 @@ function swiped(right)
   }
   // Suggest a new user, which will shift the suggestions as well
   suggestUser()
+
 }
 
 // middleware Login from login screen: Must set token because it definitely is not set
