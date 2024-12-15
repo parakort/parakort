@@ -38,11 +38,13 @@ const SkillLevels = ({sports}) => {
       
     })
 
+
+    
     return (
         <View style = {styles.skillContainer}>
             {sports.map((sport) => (
             (sport.my_level !== 0) && ( // Render only if my_level is not 0
-                <View key={sport.id} style={styles.skillItem}>
+                <View key={sport._id} style={styles.skillItem}>
                 <Image 
                     source={sportIcons[sport.sportId.name.toLowerCase()] ? sportIcons[sport.sportId.name.toLowerCase()] : sport.sportId.image} 
                     style={styles.skillIcon} 

@@ -267,7 +267,7 @@ router.post('/unmatchUser', async (req, res) => {
     await User.findByIdAndUpdate(
       src,
       { 
-        $pull: { matches: { uid: dest } }, // Remove dest from src's matches
+        $pull: { matches: { uid: dest }, likers: {uid: dest} }, // Remove dest from src's matches
         $addToSet: { dislikes: dest } // Add dest to src's dislikes (ensures no duplicates)
       },
       { new: true }
@@ -363,9 +363,14 @@ router.post('/suggestUser', async (req, res) => {
     const ageMinDate = new Date(new Date().setFullYear(new Date().getFullYear() - filters.age.max));
     const ageMaxDate = new Date(new Date().setFullYear(new Date().getFullYear() - filters.age.min));
 
+    // Convert to strings so comparison works
+    const ageMinDateStr = ageMinDate.toISOString();
+    const ageMaxDateStr = ageMaxDate.toISOString();
+
+
     const query = {
       _id: { $nin: [...matches, ...dislikes] }, // Exclude matches and dislikes
-      // 'profile.birthdate': { $gte: ageMinDate, $lte: ageMaxDate },
+       'profile.birthdate': { $gte: ageMinDateStr, $lte: ageMaxDateStr },
       ...(filters.male || filters.female
         ? { 'profile.isMale': filters.male && filters.female ? { $in: [true, false] } : filters.male ? true : { $ne: true } } // Match gender if specified
         : {}),

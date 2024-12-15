@@ -7,6 +7,7 @@ import SocialButtons from '../Components/SocialButtons';
 import SkillLevels from '../Components/SkillLevels';
 import NoUsers from '../Components/NoUsers';
 import Loading from '../Components/Loading'
+import RetryableImage from '../Components/RetryableImage';
 
 
 
@@ -14,6 +15,8 @@ const SwipeableCard = (props) => {
 
   // Current displayed media
   const [mediaIndex, setMediaIndex] = useState(0)
+  
+  
 
   const styles = StyleSheet.create({
     skillContainer: {
@@ -149,6 +152,7 @@ const SwipeableCard = (props) => {
   function swipe(right)
   {
     props.swiped(right)
+    setMediaIndex(0)
   }
 
   // called when swiping.
@@ -171,25 +175,8 @@ const SwipeableCard = (props) => {
   };
 
 
-  const handleImageLoad = () => {
-    // I now instead fade in each swipe
-
-    //fadeInAnimation.start();
-    //console.log("image loaded")
-  };
-
-
-  const openProfile = async (url, appUrl) => {
-    try {
-      
-      const supported = await Linking.canOpenURL(appUrl);
-      await Linking.openURL(supported ? appUrl : url);
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  if (props.currentSuggestion?.media[0]?.uri)
+  //console.log(props.currentSuggestion?.media[mediaIndex]?.uri)
+  if (props.currentSuggestion?.media[mediaIndex]?.uri)
   return (
     <SafeAreaView style={app_styles.screen}>
       <GestureHandlerRootView style={{ flex: 1 }}>
@@ -209,10 +196,10 @@ const SwipeableCard = (props) => {
             ]}
           >
             <View style={styles.imageContainer}>
-              <Image
-                source={{ uri: props.currentSuggestion.media[mediaIndex]?.uri }}
+              <RetryableImage
+                uri= {props.currentSuggestion.media[mediaIndex]?.uri}
                 style={styles.image}
-                onLoad={handleImageLoad}
+                useLoading={true}
               />
 
               {/* Left Arrow */}

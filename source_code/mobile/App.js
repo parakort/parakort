@@ -320,6 +320,13 @@ const updateProfile = (key, newValue) => {
   
       for (const media of localMedia) {
         media.uri = await saveFileFromBuffer(media);
+        try {
+          await Image.prefetch(media.uri);
+          // console.log(`Image preloaded successfully: ${media.uri}`);
+        } catch (error) {
+          // console.error(`Failed to preload image: ${media.uri}`, error);
+        }
+
         delete media.data; // We don't need to store the buffer locally
       }
 

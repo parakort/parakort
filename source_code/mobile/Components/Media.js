@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Image, Alert } from 'react-na
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import config from "../app.json";
+import RetryableImage from './RetryableImage';
 
 const Media = (props) => {
   const requestPermission = async () => {
@@ -55,9 +56,14 @@ const Media = (props) => {
             >
                 {/* Show the image for all images */}
               {props.media[index] ? (
-                <Image
-                  source={{ uri: props.media[index].uri }}
+                // <Image
+                //   source={{ uri: props.media[index].uri }}
+                //   style={styles.mediaPreview}
+                // />
+                <RetryableImage
+                  uri={ props.media[index].uri }
                   style={styles.mediaPreview}
+                  bro={true}
                 />
                 // Show a plus sign for the box which is for adding the next media item
               ) : (

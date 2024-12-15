@@ -3,6 +3,7 @@ import { View, Text, PanResponder, Animated, StyleSheet, Image, TouchableOpacity
 import config from "../app.json";
 import SocialButtons from './SocialButtons';
 import SkillLevels from './SkillLevels';
+import RetryableImage from './RetryableImage';
 
 const Liker = (props) => {
   const [pan, setPan] = useState(new Animated.ValueXY());  // Animated value for pan responder
@@ -34,7 +35,7 @@ const Liker = (props) => {
       left: 5,
     },
     rightArrow: {
-      display: mediaIndex < props.media.media.length - 1 ? "flex" : "none",
+      display: mediaIndex < props.media?.media.length - 1 ? "flex" : "none",
       right: 5,
     },
     arrowText: {
@@ -103,6 +104,7 @@ const Liker = (props) => {
     },
   });
 
+  if (props.media)
   return (
       <Animated.View
         style={[styles.container, { transform: [{ translateX: pan.x }, { translateY: pan.y }] }]}
@@ -111,8 +113,8 @@ const Liker = (props) => {
         {/* Left contaner : Image and socials */}
         <View style = {{display: "flex", flexDirection: "column"}}>
           <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: props.media.media[mediaIndex].uri }}
+            <RetryableImage
+              uri={ props.media.media[mediaIndex].uri }
               style={styles.imageStyle}
             />
 

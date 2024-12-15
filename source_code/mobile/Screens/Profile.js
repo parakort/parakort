@@ -5,6 +5,7 @@ import Media from '../Components/Media';
 import SkillPicker from '../Components/SkillPicker';
 import SocialModal from '../Components/SocialModal';
 import DemographicPicker from '../Components/DemographicPicker'
+import RetryableImage from '../Components/RetryableImage';
 
 
 
@@ -203,8 +204,8 @@ const Profile = (props) => {
 
           {/* Profile pic and name */}
           <View style={styles.imagecontainer}>
-            <Image
-              source={media[0] ? { uri: media[0].uri } : require('../assets/notfound.jpg')}
+            <RetryableImage
+              uri={media[0] ? media[0].uri  : require('../assets/notfound.jpg')}
               style={{
                   width: imageSize,
                   height: imageSize,

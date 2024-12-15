@@ -11,6 +11,7 @@ import {
 import config from "../app.json";
 import SocialButtons from './SocialButtons';
 import SkillLevels from './SkillLevels';
+import RetryableImage from './RetryableImage';
 
 const Match = (props) => {
   const triggerThreshold = -150; // Distance to trigger swipe action
@@ -107,8 +108,8 @@ const Match = (props) => {
     >
       <View style={styles.container}>
       <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: props.media.media[mediaIndex].uri }}
+            <RetryableImage
+              uri={props.media.media[mediaIndex].uri }
               style={styles.imageStyle}
             />
 
