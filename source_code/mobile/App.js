@@ -375,7 +375,7 @@ function resumeSuggestLoop(clearSuggestions)
   // I think i should keep the first, because we can avoid the loading screen, and it will likely still meet our filters
   else if (clearSuggestions && suggestions)
   {
-    setSuggestions((prevItems) => prevItems.slice(0, 1));
+    setSuggestions((prevItems) => [...prevItems.slice(0, 1)]);
     
     suggestUser()
 
@@ -546,6 +546,7 @@ function logDifferences(obj1, obj2, log) {
     // (TODO) also send an array of history (users we should exclude)
     axios.post(`${BASE_URL}/suggestUser`, {uid: user._id, filters: filters, location: location})
     .then((res) => {
+      
       //console.log("Suggested", res.data)
 
       // Start a media download for the user if we don't have their media from recently
@@ -553,17 +554,22 @@ function logDifferences(obj1, obj2, log) {
 
       // Add the user to the suggestion array (side effect will generate more users if needed)
       setSuggestions(prevSuggestions => {
-        // Create a new array by removing the first item, if the array is at capacity
-        const newArray = prevSuggestions.length >= QUEUE_LEN ? prevSuggestions.slice(1): prevSuggestions;
-
-        // Add the new item to the end of the new array
+        // Create a new array by slicing or spreading the previous suggestions
+        const newArray = prevSuggestions.length >= QUEUE_LEN 
+          ? [...prevSuggestions.slice(1)] // ... to make a new array reference, because, only a new array reference will trigger use effect
+          : [...prevSuggestions];
+      
+        // Add the new item to the end
         newArray.push(res.data);
-
-        // Set the new currentSuggestion to be the user in front of the queue
-        setCurrentSuggestion(media.get(newArray[0]))
-
+      
+      
+        // Update the current suggestion
+        setCurrentSuggestion(media.get(newArray[0]));
+      
+        // Return the new array to update the state
         return newArray;
       });
+      
 
       
 
@@ -576,7 +582,7 @@ function logDifferences(obj1, obj2, log) {
         // need to update suggestion array
         setSuggestions(prevSuggestions => {
           // Create a new array by removing the first item
-          const newArray = prevSuggestions.slice(1)
+          const newArray = [...prevSuggestions.slice(1)]
 
           // True if we ran out suggestions and can not find any more
           if (newArray.length < 1)
