@@ -56,15 +56,15 @@ const Media = (props) => {
             >
                 {/* Show the image for all images */}
               {props.media[index] ? (
-                // <Image
-                //   source={{ uri: props.media[index].uri }}
-                //   style={styles.mediaPreview}
-                // />
-                <RetryableImage
-                  uri={ props.media[index].uri }
+                <Image
+                  source={{ uri: props.media[index].uri }}
                   style={styles.mediaPreview}
-                  bro={true}
                 />
+                // <RetryableImage
+                //   uri={ props.media[index].uri }
+                //   style={styles.mediaPreview}
+                //   bro={true}
+                // />
                 // Show a plus sign for the box which is for adding the next media item
               ) : (
                 !(index > (props.media ? props.media.length : 0)) && <Text style={styles.plusSign}>+</Text>

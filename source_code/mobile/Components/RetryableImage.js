@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Image, View } from 'react-native';
+import { Image, View, Text } from 'react-native';
 
-const RetryableImage = ({ uri, style, useLoading }) => {
+const RetryableImage = ({ uri, style, useLoading, bro }) => {
     const [retryCount, setRetryCount] = useState(0);
     const [trying, setTrying] = useState(true);
     const [imageUri, setImageUri] = useState(uri);
     const [loading, setLoading] = useState(false);
-
-    const MAX_RETRIES = 300;
+    const MAX_RETRIES = 500;
 
     if (!imageUri) setImageUri(uri);
 
@@ -23,6 +22,7 @@ const RetryableImage = ({ uri, style, useLoading }) => {
     }, [imageUri]);
 
     const handleImageError = () => {
+
         if (retryCount > MAX_RETRIES) {
             setTrying(false);
             setImageUri(null);
@@ -36,12 +36,17 @@ const RetryableImage = ({ uri, style, useLoading }) => {
         }, 10);
     };
 
+    // return (
+    //     <Image source={require('../assets/loading.png')}></Image>
+    // )
+
+
     return (
         <View>
             {loading && (
                 <Image
                     key={`loading-${retryCount}`}
-                    style={{ ...style}}
+                    style={style}
                     source={require('../assets/loading.png')}
                 />
             )}
@@ -53,7 +58,7 @@ const RetryableImage = ({ uri, style, useLoading }) => {
                     onError={handleImageError}
                     onLoad={() => { 
                         setRetryCount(0); 
-                        setLoading(false); 
+                        setLoading(false);
                     }}
                 />
             )}
