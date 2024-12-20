@@ -274,7 +274,14 @@ const updateProfile = (key, newValue) => {
    */
   function updateField(field, newValue) 
   {
+    // when any of these fields are modified, we will refresh suggestions
+    const refreshTriggers = ["dislikes"]
+
     axios.post(`${BASE_URL}/updateField`, {uid: user?._id, field: field, newValue: newValue})
+    .then((res) => {
+      console.log("trigger")
+      if (field in refreshTriggers) resumeSuggestLoop(false)
+    })
   }
 
   
@@ -579,7 +586,7 @@ function logDifferences(obj1, obj2, log) {
     
     // Send an array of UIDs which we are matched with (mutual is irrelevant) and 
     // (TODO) also send an array of history (users we should exclude)
-    console.log(suggestions)
+    //console.log(suggestions)
 
     axios.post(`${BASE_URL}/suggestUser`, {uid: user._id, filters: filters, location: location, dislikes: dislikes, suggestions: suggestions, matches: matches.map((obj) => {return obj.uid})})
     .then((res) => {

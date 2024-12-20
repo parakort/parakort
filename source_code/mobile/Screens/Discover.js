@@ -127,7 +127,7 @@ const SwipeableCard = (props) => {
   );
 
   const rotateCard = translateX.interpolate({
-    inputRange: [-500, 0, 500],
+    inputRange: [-600, 0, 600],
     outputRange: ['-30deg', '0deg', '30deg'],
     extrapolate: 'clamp',
   });
@@ -146,7 +146,7 @@ const SwipeableCard = (props) => {
       }).start(() => replaceCard(true));
     } else if (translateX._value < 0) {
       Animated.timing(translateX, {
-        toValue: -500,
+        toValue: -600,
         duration: 300,
         useNativeDriver: true,
       }).start(() => replaceCard(false));
