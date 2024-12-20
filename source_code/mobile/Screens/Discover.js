@@ -15,6 +15,10 @@ const SwipeableCard = (props) => {
 
   // Current displayed media
   const [mediaIndex, setMediaIndex] = useState(0)
+  useEffect(() => {
+    translateX.setValue(0);
+    opacity.setValue(1);
+  }, [props.currentSuggestion])
   
   
 
@@ -91,6 +95,7 @@ const SwipeableCard = (props) => {
     description: {
       fontSize: 15,
       textAlign: 'center',
+      width: "75%"
     },
   });
 
@@ -175,8 +180,7 @@ const SwipeableCard = (props) => {
   };
 
 
-  //console.log(props.currentSuggestion?.media[mediaIndex]?.uri)
-  if (props.currentSuggestion?.media[mediaIndex]?.uri)
+  if (props.currentSuggestion)
   return (
     <SafeAreaView style={app_styles.screen}>
       <GestureHandlerRootView style={{ flex: 1 }}>
@@ -213,7 +217,7 @@ const SwipeableCard = (props) => {
               </TouchableOpacity>
              
               
-              <Text style={styles.name}>{props.currentSuggestion.profile.firstName}, {props.currentSuggestion.profile.age}</Text>
+              <Text style={styles.name}>{props.currentSuggestion.profile.firstName} {props.currentSuggestion.profile.lastName}, {props.currentSuggestion.profile.age}</Text>
 
               
 
@@ -236,7 +240,7 @@ const SwipeableCard = (props) => {
   {
     if (props.haltSuggestLoop)
     return (
-      <NoUsers resumeSuggestLoop = {props.resumeSuggestLoop} loading = {!props.haltSuggestLoop}></NoUsers>
+      <NoUsers resumeSuggestLoop = {props.resumeSuggestLoop}></NoUsers>
     )
 
     return <Loading></Loading>

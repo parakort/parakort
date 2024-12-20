@@ -104,6 +104,10 @@ export default function App() {
     setSetupScreen(false)
   }
 
+  useEffect(() => {
+    //console.log(media)
+  }, [media])
+
   // Refresh
   useEffect(() => {
     let intervalId
@@ -333,11 +337,14 @@ const updateProfile = (key, newValue) => {
       // Media object holds the user's profile and media
       let userMedia = {profile: userProfile, media: localMedia, sports: sports}
       
-  
+      
       // we have the media for this user. Store it in the media Map, which will store in async storage also
-      const updatedMap = new Map(media);
-      updatedMap.set(user._id, userMedia)
-      setMedia(updatedMap)
+      setMedia((prevMedia) => {
+        const updatedMap = new Map(prevMedia);
+        updatedMap.set(uid, userMedia);
+        return updatedMap;
+      });
+      
 
       return userMedia
       
@@ -469,7 +476,7 @@ function logDifferences(obj1, obj2, log) {
   // Their media is downloaded beforehand
   useEffect(() => {
 
-    // This if statement doesnt allow us to check if we need to download suggestions on our first app open
+
     if (suggestions)
     {
       AsyncStorage.setItem('suggestions', JSON.stringify(suggestions))
@@ -478,7 +485,13 @@ function logDifferences(obj1, obj2, log) {
       if ((suggestions.length < QUEUE_LEN) && !haltSuggestLoop) {
         suggestUser()
       }
+
+      // Update the current suggestion to always point to the first item - can't we just use a pointer?
+      setCurrentSuggestion(media.get(suggestions[0]));
+      
     }
+
+    
     
 
   }, [suggestions])
@@ -510,7 +523,6 @@ function logDifferences(obj1, obj2, log) {
     // The first update (coming from the database, when prevProfile is null,) we want to use to download the media
     if (profile && !prevProfile.current)
     {
-      
       getMedia() // Download latest profile and image information for all stored users
     }
     
@@ -543,73 +555,60 @@ function logDifferences(obj1, obj2, log) {
 
   // Suggest new user
   // will grab an ID to suggest, add it to the array, and download their media
-  function suggestUser() {
+  // swiped: Should we remove the first user (yes if we swiped)
+  function suggestUser(swiped) {
     if (!location)
     {
       // Location didn't load yet, quit. This function will be called again
       return
     }
+
+    // Remove the first suggestion if either
+    // A: the list is full
+    // B: we swiped
+
+    setSuggestions(prevSuggestions => {
+      if (swiped || prevSuggestions.length >= QUEUE_LEN) {
+        // Create a new array excluding the first item
+        return prevSuggestions.slice(1);
+      }
+      // If no modification is needed, return the original array
+      return prevSuggestions;
+    });
+    
+    
     // Send an array of UIDs which we are matched with (mutual is irrelevant) and 
     // (TODO) also send an array of history (users we should exclude)
-    axios.post(`${BASE_URL}/suggestUser`, {uid: user._id, filters: filters, location: location})
+    console.log(suggestions)
+
+    axios.post(`${BASE_URL}/suggestUser`, {uid: user._id, filters: filters, location: location, dislikes: dislikes, suggestions: suggestions, matches: matches.map((obj) => {return obj.uid})})
     .then((res) => {
       
-      //console.log("Suggested", res.data)
+      console.log("Suggested", res.data)
 
       // Start a media download for the user if we don't have their media from recently
-      if (!media.has(res.FormData)) downloadMediaFiles(res.data)
+      if (!media.has(res.data)) downloadMediaFiles(res.data)
 
       // Add the user to the suggestion array (side effect will generate more users if needed)
-      setSuggestions(prevSuggestions => {
-        // Create a new array by slicing or spreading the previous suggestions
-        const newArray = prevSuggestions.length >= QUEUE_LEN 
-          ? [...prevSuggestions.slice(1)] // ... to make a new array reference, because, only a new array reference will trigger use effect
-          : [...prevSuggestions];
-      
-        // Add the new item to the end
-        newArray.push(res.data);
-      
-      
-        // Update the current suggestion
-        setCurrentSuggestion(media.get(newArray[0]));
-      
-        // Return the new array to update the state
-        return newArray;
+      setSuggestions((prevSuggestions) => {
+        // Ensure no duplicates by checking against existing suggestions
+        const isDuplicate = prevSuggestions.some((s) => s === res.data);
+        if (!isDuplicate) {
+          return [...prevSuggestions, res.data];
+        }
+        return prevSuggestions;
       });
       
-
-      
-
 
     })
     .catch((e) => {
       if (e.response.status == 404)
       {
         console.log("No suitable users")
-        // need to update suggestion array
-        setSuggestions(prevSuggestions => {
-          // Create a new array by removing the first item
-          const newArray = [...prevSuggestions.slice(1)]
 
-          // True if we ran out suggestions and can not find any more
-          if (newArray.length < 1)
-          {
-            // Halt the loop since we know there is nobody else to find
-            setHaltSuggestLoop(true)
-            // We eventually need to reset this and suggest more users, perhaps when filters change
-            // It will automatically be reset to false and try to suggest when the app restarts
-            // But we need to also reset this if A) user filters change B) user clicks try again button
-
-            setCurrentSuggestion(null)
-
-            return []
-
-          }
-  
-          setCurrentSuggestion(media.get(newArray[0]))
-
-          return newArray;
-        });
+        // Stop trying and display no more users
+        setHaltSuggestLoop(true)
+        
 
       }
       else
@@ -875,7 +874,7 @@ function swiped(right)
     }
   }
   // Suggest a new user, which will shift the suggestions as well
-  suggestUser()
+  suggestUser(true)
 
 }
 

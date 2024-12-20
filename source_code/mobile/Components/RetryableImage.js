@@ -8,10 +8,12 @@ const RetryableImage = ({ uri, style, useLoading, bro }) => {
     const [loading, setLoading] = useState(false);
     const MAX_RETRIES = 500;
 
-    if (!imageUri) setImageUri(uri);
+    // If uri is null, we don't want to setimageuri to null - would cause infinite loop
+    if (!imageUri && uri) setImageUri(uri);
 
     useEffect(() => {
         if (imageUri !== uri) setImageUri(uri);
+       
     }, [uri]);
 
     useEffect(() => {
@@ -53,7 +55,7 @@ const RetryableImage = ({ uri, style, useLoading, bro }) => {
             {!loading && trying && (
                 <Image
                     key={`image-${imageUri}`}
-                    source={{ uri: imageUri }}
+                    source={uri? { uri: imageUri } : require("../assets/notfound.jpg")}
                     style={style}
                     onError={handleImageError}
                     onLoad={() => { 

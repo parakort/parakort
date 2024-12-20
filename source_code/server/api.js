@@ -346,6 +346,7 @@ router.post('/getData', async (req, res) => {
 
 router.post('/suggestUser', async (req, res) => {
   const filters = req.body.filters;
+  const suggestions = req.body.suggestions
   const matches = req.body.matches || [];
   const dislikes = req.body.dislikes || [];
   const location = req.body.location;
@@ -369,7 +370,7 @@ router.post('/suggestUser', async (req, res) => {
 
 
     const query = {
-      _id: { $nin: [...matches, ...dislikes] }, // Exclude matches and dislikes
+      _id: { $nin: [...matches, ...dislikes, ...suggestions] }, // Exclude matches and dislikes
        'profile.birthdate': { $gte: ageMinDateStr, $lte: ageMaxDateStr },
       ...(filters.male || filters.female
         ? { 'profile.isMale': filters.male && filters.female ? { $in: [true, false] } : filters.male ? true : { $ne: true } } // Match gender if specified
@@ -425,10 +426,11 @@ router.post('/suggestUser', async (req, res) => {
     let users = await User.find(query).limit(1).exec();
 
     if (users.length > 0) {
+      console.log("\nMatch Found:");
+      console.log(users[0].profile.firstName, users[0].profile.lastName);
       if (verboseLogs) {
         const matchedUser = users[0];
-
-        console.log("\nMatch Found:");
+        
         console.log(`User ID: ${matchedUser._id}`);
         console.log(`Age: ${new Date().getFullYear() - new Date(matchedUser.profile.birthdate).getFullYear()}`);
         console.log(`Gender: ${matchedUser.profile.isMale ? "Male" : "Female"}`);
@@ -532,6 +534,8 @@ router.post('/deleteMedia', async (req,res) => {
 
 router.post('/downloadMedia', async (req,res) => {
   let megaFolder = null;
+  let status = 200
+
   if (!mega.root.children)
   {
     res.status(404).send("No users exist")
@@ -545,8 +549,9 @@ router.post('/downloadMedia', async (req,res) => {
 
   if (!megaFolder)
   {
-    res.status(404).send("No user media exists")
-    return
+    status = 269
+    //res.status(404).send("No user media exists")
+    //return
   }
 
   let buffers = []
@@ -565,8 +570,9 @@ router.post('/downloadMedia', async (req,res) => {
     }
   }
   catch (e) {
-    res.status(404).send("No user media exists")
-    return
+    status = 269
+    //res.status(404).send("No user media exists")
+    //return
   }
 
   // send the user's profile too, and their sports
@@ -584,7 +590,7 @@ router.post('/downloadMedia', async (req,res) => {
     
     profile.age = calculateAge(profile.birthdate) // Add the user's age
 
-    res.send({media: buffers, profile: profile, sports: sports})
+    res.status(status).send({media: buffers, profile: profile, sports: sports})
   }
   else
   {
@@ -764,6 +770,155 @@ router.post('/updateField', async (req, res) => {
   router.get('/ping', async(req, res) => {
     res.json(Date.now())
   })
+
+  // *** @TODO MUST ADD SECURITY (OTP) FOR SERVER MANAGEMENT ENDPOINTS
+
+  // Endpoint to add test users 
+  router.post('/addTestUser', async (req, res) => {
+
+    function generateRandomBirthdate() {
+      // Define age ranges with their probabilities
+      const ageRanges = [
+          { min: 18, max: 40, weight: 0.7 }, // 70% chance
+          { min: 41, max: 65, weight: 0.2 }, // 20% chance
+          { min: 66, max: 99, weight: 0.1 }  // 10% chance
+      ];
+  
+      // Choose an age range based on the probabilities
+      const random = Math.random();
+      let selectedRange;
+      let cumulativeWeight = 0;
+  
+      for (const range of ageRanges) {
+          cumulativeWeight += range.weight;
+          if (random < cumulativeWeight) {
+              selectedRange = range;
+              break;
+          }
+      }
+  
+      // Generate a random age within the selected range
+      const age = Math.floor(Math.random() * (selectedRange.max - selectedRange.min + 1)) + selectedRange.min;
+  
+      // Calculate the birth year
+      const currentYear = new Date().getFullYear();
+      const birthYear = currentYear - age;
+  
+      // Generate a random month and day
+      const birthMonth = Math.floor(Math.random() * 12) + 1; // 1 to 12
+      const birthDay = Math.floor(Math.random() * 28) + 1;   // 1 to 28 to ensure valid dates
+  
+      // Create the birthdate
+      const birthdate = new Date(birthYear, birthMonth - 1, birthDay);
+  
+      // Return the birthdate in ISO 8601 format
+      return birthdate.toISOString();
+  }
+  
+  
+    const { count } = req.body;
+
+    // Validate count
+    if (typeof count !== 'number' || isNaN(count)) {
+        return res.status(400).send({ message: 'Invalid input. Count must be a valid number.' });
+    }
+
+    if (count === -1) {
+        try {
+            // Delete all test users
+            const result = await User.deleteMany({ test: true });
+            return res.status(200).send({ message: `${result.deletedCount} users deleted.` });
+        } catch (error) {
+            console.error('Error deleting test users:', error);
+            return res.status(500).send({ message: 'Error deleting test users.' });
+        }
+    }
+
+    if (count < 1) {
+        return res.status(400).send({ message: 'Please enter a number greater than 0.' });
+    }
+
+    // Add test users
+    try {
+        const usersToAdd = [];
+        const endpoint = 'https://api.openai.com/v1/chat/completions';
+        const query = `Your task is to respond with (and only with) a stringified JSON object that i can directly use JSON.parse on your response. It is to be an array of objects, of length ${count}, consisting of sample users for my program. Do not write a script to do it, generate it with AI. The fields for each are as follows: isMale: a random true or false value. firstName: a random first name, that matches the gender you chose. lastName: a random last name. bio: a random bio, of 5-20 words, where the user tells about themself briefly (they are looking for people to play sports with). lat: a random latitude value, but this must be within a 50 mile radius of 40.77781589239908, -73.03254945210463. lon: a random longitude, following the same radius constraint aforementioned.`
+
+        const messages = [
+          { role: 'user', content: query },
+        ];
+        
+        axios.post(
+          endpoint,
+          {
+            model: 'gpt-3.5-turbo',
+            messages: messages,
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${process.env.GPT_KEY}`,
+            },
+          }
+        )
+        .then(async (resp) => {
+          let userData = JSON.parse(resp.data.choices[0].message.content)
+          const sports = await Sport.find({});
+
+    
+
+          for (let i = 0; i < count; i++) {
+
+            let userSports = sports.map(sport => ({
+              sportId: sport._id,
+              my_level: Math.floor(Math.random() * 4),
+              match_level: [1, 2, 3].filter(() => Math.random() < 0.5)
+            }));
+
+
+            usersToAdd.push({
+                password: "test",
+                email: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}@none.com`,
+                test: true, // Indicate it's a test user
+                filters: {
+                  sports: userSports
+                },
+                profile: {
+                  birthdate: generateRandomBirthdate(),
+                  firstName: userData[i].firstName,
+                  lastName: userData[i].lastName,
+                  isMale: userData[i].isMale,
+                  bio: userData[i].bio,
+                  socials: {
+                    instagram: "test",
+                    facebook: "test",
+                    linkedin: "test"
+                  }
+                  
+                },
+                location: {
+                  lat: userData[i].lat,
+                  lon: userData[i].lon
+                },
+                marked_for_deletion: false,
+
+            });
+        }
+
+        const result = await User.insertMany(usersToAdd);
+        return res.status(201).send({ message: `${result.length} test users added successfully.` });
+        
+        })
+
+        
+
+        
+    } catch (error) {
+        console.error('Error adding test users:', error);
+        return res.status(500).send({ message: `Error adding test users: ${error.message}` });
+    }
+});
+
 
   // Endpoint to add a sport
 router.post('/addSport', async (req, res) => {

@@ -103,6 +103,10 @@ dislikes: {
 likers: {
     type: Array,
     default: []
+},
+test: {
+    type: Boolean,
+    default: false
 }
 
 }, { strict: false })

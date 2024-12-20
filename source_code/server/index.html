@@ -20,6 +20,25 @@
             }
         }
 
+        async function addTestUser() {
+            const input = prompt("Enter the amount of test users, or -1 to delete all:");
+            const count = parseInt(input, 10);
+
+            // Validate count
+            if (Number.isInteger(count)) {
+                const response = await fetch('/addTestUser', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ count })
+                });
+                const result = await response.json();
+                alert(result.message);
+            } else {
+                alert("Invalid input. Please enter a valid integer.");
+            }
+        }
+
+
         async function deleteSport() {
             const id = prompt("Enter the ID of the sport to delete:");
 
@@ -32,10 +51,14 @@
             }
         }
     </script>
+
+    
 </head>
 <body>
     <h1>Manage Sports</h1>
     <button onclick="addSport()">Add Sport</button>
     <button onclick="deleteSport()">Delete Sport</button>
+    <button onclick="addTestUser()">Add test users</button>
+
 </body>
 </html>

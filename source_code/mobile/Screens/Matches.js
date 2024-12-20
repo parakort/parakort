@@ -4,7 +4,7 @@ import styles from '../styles.js';
 import Match from '../Components/Match.js';
 
 const Matches = (props) => {
-  if (props.matches) {
+  if (props?.matches) {
     return (
       <View style={styles.screen}>
         <Text style={{ fontSize: 25, fontWeight: '100', paddingBottom: 10 }}>
