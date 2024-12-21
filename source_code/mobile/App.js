@@ -37,7 +37,14 @@ export default function App() {
 
   // Confetti effect
   const [triggerEffect, setTriggerEffect] = useState(false);
+
+
   const [haltSuggestLoop, setHaltSuggestLoop] = useState(false);
+
+  // SOCKET CONNECTION
+
+  const ws = useRef(null); // WebSocket reference
+
 
 
   const handleTriggerEffect = () => {
@@ -86,6 +93,7 @@ export default function App() {
 
   const prevFilters = useRef(null)
   const prevProfile = useRef(null)
+  const prevLocation = useRef(null);
   const QUEUE_LEN = 3
 
   
@@ -108,20 +116,48 @@ export default function App() {
     //console.log(media)
   }, [media])
 
+  useEffect(() => {
+
+  }, [currentSuggestion])
+
   // Refresh
   useEffect(() => {
-    let intervalId
-    if (user)
-    {
-      fetchData()
-      intervalId = setInterval(fetchData, 10000); // Fetch every 10 seconds
+    if (user) {
+      // Connect to WebSocket server
+      connectWs()
+
+      // Runs when this socket gets a message
+      // We also have an .onmessage in the Chat component.
+      ws.current.onmessage = (event) => {
+        const receivedMessage = JSON.parse(event.data);
+        if (receivedMessage.type === 'update') {
+          fetchData()
+        }
+      };
+
+      ws.current.onclose = () => {
+        console.log('WebSocket disconnected');
+      };
+
+      return () => {
+        ws.current?.close(); // Clean up WebSocket connection
+      };
     }
 
-    return (() => {
-      clearInterval(intervalId)
-    })
   }, [user])
 
+  function connectWs()
+  {
+    ws.current = new WebSocket(`ws://${BASE_URL.substring(BASE_URL.indexOf("//") + 2, BASE_URL.indexOf(":", 5))}:8080`);
+
+      ws.current.onopen = () => {
+        console.log('WebSocket connected');
+        // Register this user with the WebSocket server
+        ws.current.send(
+          JSON.stringify({ type: 'register', userId: user._id })
+        );
+      };
+  }
   async function fetchData() {
 
     if (user)
@@ -260,6 +296,16 @@ const updateFilter = (filterType, newValue) => {
     setFilters(prevFilters => updateNestedKey(prevFilters, filterType, newValue));
 };
 
+// when any of these fields are modified, we will refresh suggestions
+// If we poll for new dislikes value, which we do, this will trigger on each poll
+// Could be a good thing, to periodically check.
+const refreshTriggers = [dislikes, location]
+useEffect(() => {
+
+  if (haltSuggestLoop) resumeSuggestLoop(false)
+
+}, refreshTriggers)
+
 // Updates a specific profile key with state (not in db)
 const updateProfile = (key, newValue) => {
   setProfile(prevProfile => updateNestedKey(prevProfile, key, newValue));
@@ -274,14 +320,18 @@ const updateProfile = (key, newValue) => {
    */
   function updateField(field, newValue) 
   {
-    // when any of these fields are modified, we will refresh suggestions
-    const refreshTriggers = ["dislikes"]
+    // if we are resetting dislikes, be sure to change them locally too.
+    // This will allow the trigger to have the latest info when we try to resume
+    if (field == "dislikes") 
+      {
+        setDislikes(newValue)
+      }
+
+    
 
     axios.post(`${BASE_URL}/updateField`, {uid: user?._id, field: field, newValue: newValue})
-    .then((res) => {
-      console.log("trigger")
-      if (field in refreshTriggers) resumeSuggestLoop(false)
-    })
+
+    
   }
 
   
@@ -411,16 +461,43 @@ function resumeSuggestLoop(clearSuggestions)
   // For filters, we have a updateFilter function to update only one filter at a time.
   // Should filters be in AsyncStorage? Not right now, because what if we want to support users who use multiple devices?
   useEffect(() => {
-    
-    // location.timestamp can be used for 'last seen'
-    // this allows other users to get the latest location of this user
-    if (location) 
-    {
-      updateField("location", location)
-      resumeSuggestLoop(true) // incase our new location filter allows for more users
+    if (location) {
+
+      const prev = prevLocation.current;
+      const hasMoved =
+        prev &&
+        haversineDistance(
+          prev.lat,
+          prev.lon,
+          location.lat,
+          location.lon
+        ) >= 1;
+
+      if (!prev || hasMoved) {
+        updateField("location", location);
+        resumeSuggestLoop(true); // Incase our new location filter allows for more users
+        prevLocation.current = location;
+      }
     }
-    
-  }, [location])
+  }, [location]);
+
+  function haversineDistance(lat1, lon1, lat2, lon2) {
+    const R = 3958.8; // Earth's radius in miles
+    const toRadians = (degrees) => degrees * (Math.PI / 180);
+  
+    const dLat = toRadians(lat2 - lat1);
+    const dLon = toRadians(lon2 - lon1);
+  
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRadians(lat1)) *
+        Math.cos(toRadians(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+  
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in miles
+  }
 
   
   useEffect(() => {
@@ -611,7 +688,7 @@ function logDifferences(obj1, obj2, log) {
     .catch((e) => {
       if (e.response.status == 404)
       {
-        console.log("No suitable users")
+        //console.log("No suitable users")
 
         // Stop trying and display no more users
         setHaltSuggestLoop(true)
@@ -881,7 +958,11 @@ function swiped(right)
     }
   }
   // Suggest a new user, which will shift the suggestions as well
+
+  setHaltSuggestLoop(true)
   suggestUser(true)
+  setHaltSuggestLoop(false)
+
 
 }
 
@@ -1049,7 +1130,7 @@ if (showSplash)
     return (
       <>
           {/* Navigation is the actual Screen which gets displayed based on the tab cosen */}
-          <Navigation resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
+          <Navigation connectWs = {connectWs} ws = {ws} serverUrl = {BASE_URL} resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
           
           {/* Confetti Screen */}
           <ConfettiScreen

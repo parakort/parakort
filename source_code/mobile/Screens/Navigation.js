@@ -60,7 +60,7 @@ const Navigation = (props) => {
             <Likes onSwipeLeft = {props.unmatch} onSwipeRight = {props.matchUser} media = {props.media} likers = {props.likers} dislikes = {props.dislikes} matches = {props.matches}/>}/>
 
           <Tab.Screen name="Matches" children={()=>
-            <Matches  onSwipeLeft = {props.unmatch} matches = {props.matches} media = {props.media}/>}/>
+            <Matches  connectWs = {props.connectWs} ws = {props.ws} serverUrl = {props.serverUrl} myuid= {props.user._id} onSwipeLeft = {props.unmatch} matches = {props.matches} media = {props.media}/>}/>
 
           <Tab.Screen name="Profile" children={()=>
             <Profile updateField = {props.updateField} updateFilter = {props.updateFilter} filters = {props.filters} updateMedia = {props.updateMedia} user = {props.user} media = {props.media} profile = {props.profile} updateProfile = {props.updateProfile} logout = {props.logout} deleteAccount = {props.deleteAccount}/>}/>

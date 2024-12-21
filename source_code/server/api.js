@@ -56,6 +56,8 @@
   })
 
 
+  const users = {}; // Map user ID to WebSocket connection
+
 
   // Whether to bypass email confirmations, for testing
   const bypass_confirmations = true
@@ -254,6 +256,8 @@ pingUrl();
 });
 
 // Endpoint to unmatch two users and add to dislikes
+// src is doing the action, dest needs to be made aware, if they are on the app
+// So forceUpdate for dest
 router.post('/unmatchUser', async (req, res) => {
   try {
     const { src, dest } = req.body; // Get the user IDs from the request body
@@ -282,6 +286,9 @@ router.post('/unmatchUser', async (req, res) => {
       },
       { new: true }
     );
+
+    // Force dest to pull latest data, now that it has changed
+    forceUpdate(dest)
 
     // Respond back indicating the unmatch was successful
     res.status(200).json({ message: 'Users have been unmatched and added to dislikes successfully' });
@@ -327,6 +334,10 @@ router.post('/matchUser', async (req, res) => {
         { _id: req.body.dest, 'matches.uid': req.body.source },  // Query to find the document and the specific UID
         { $set: { 'matches.$.mutual': true } }     // Update operation to set `mutual` to true
       );
+
+    // Let the destination user be aware of the changes
+    forceUpdate(req.body.dest)
+
   })
   .catch((e) => {
     console.log("failed to match user", e)
@@ -335,13 +346,65 @@ router.post('/matchUser', async (req, res) => {
 })
 
 
+// Force a user to get new data, forcing them to call the below endpoint.
+function forceUpdate(uid)
+{
+  // websocket will tell this uid, if they are online (app open),
+  // to perform a call to /getData
+  // Forward message to the recipient, if they are online
+  const recipientWs = users[uid];
+  if (recipientWs) {
+    recipientWs.send(JSON.stringify({type: 'update'}));
+  }
+
+}
 
 // Poll to get new data
+// Websocket forces a user to pull new data when we make them aware that there's an update.
 router.post('/getData', async (req, res) => {
   const user = await User.findById(req.body.user, 'matches dislikes likers');
   res.send(user)
 
 })
+
+// Sockets for end to end comms
+
+const WebSocket = require('ws');
+const wss = new WebSocket.Server({ port: 8080 });
+
+
+wss.on('connection', (ws) => {
+  ws.on('message', (message) => {
+    const parsedMessage = JSON.parse(message);
+
+    if (parsedMessage.type === 'register') {
+      // Register the user connection
+      users[parsedMessage.userId] = ws;
+      console.log("Websocket connected", parsedMessage.userId)
+    } else if (parsedMessage.type === 'message') {
+
+      // Forward message to the recipient, if they are online
+      const recipientWs = users[parsedMessage.recipientId];
+      if (recipientWs) {
+        recipientWs.send(JSON.stringify(parsedMessage));
+      }
+
+      // Regardless of if they are online, 
+      // We need to update the chat database for both users (each user has one entry in the chat database.)
+       
+    }
+  });
+
+  ws.on('close', () => {
+    // Clean up user connections
+    for (const [userId, userWs] of Object.entries(users)) {
+      if (userWs === ws) {
+        delete users[userId];
+      }
+    }
+  });
+});
+
 
 
 router.post('/suggestUser', async (req, res) => {
