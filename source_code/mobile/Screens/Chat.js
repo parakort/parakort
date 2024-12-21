@@ -13,35 +13,54 @@ import {
 import RetryableImage from '../Components/RetryableImage';
 import config from "../app.json"
 
-
 const Chat = (props) => {
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
+  const flatListRef = useRef(null);
 
   useEffect(() => {
-    if (props?.user) {
-      // Bind socket event to listen for functions
-      if (isSocketBroken(props.ws.current))
-        props.connectWs()
+    async function loadMessages() {
+      try {
+        if (props?.user) {
 
-      props.ws.current.onmessage = (event) => {
-        const receivedMessage = JSON.parse(event.data);
-        if (receivedMessage.type === 'message') {
-          setMessages((prev) => [...prev, receivedMessage]);
+          // Clear old messages
+          setMessages([])
+
+          // Bind socket event to listen for functions
+          if (isSocketBroken(props.ws.current))
+            props.connectWs()
+
+          props.ws.current.onmessage = (event) => {
+            const receivedMessage = JSON.parse(event.data);
+            if (receivedMessage.type === 'message') {
+              setMessages((prev) => [...prev, receivedMessage]);
+            }
+          };
+
+          // Load messages
+          const messages = await props.loadMessages(props.myuid, props.user.uid);
+          setMessages(messages);
         }
-      };
-
+      } catch (error) {
+        console.error("Error setting messages", error);
+      }
     }
+
+    loadMessages();
   }, [props.user]);
+
+  useEffect(() => {
+    // Scroll to the bottom when messages update
+    flatListRef.current?.scrollToEnd({ animated: true });
+  }, [messages]);
 
   function isSocketBroken(socket) {
     try {
-  
       // Define conditions for a "working" socket
       const isSocketIdValid = typeof socket._socketId === "number";
       const isReadyStateValid = socket.readyState === 3;
       const isSubscriptionsValid = Array.isArray(socket._subscriptions) && socket._subscriptions.length === 0;
-  
+
       // Return true if all conditions are met
       return isSocketIdValid && isReadyStateValid && isSubscriptionsValid;
     } catch (error) {
@@ -56,16 +75,18 @@ const Chat = (props) => {
     if (isSocketBroken(props.ws.current))
       props.connectWs()
 
+    const time = new Date()
+
     const newMessage = {
       type: 'message',
       senderId: props.myuid,
       recipientId: props.user.uid,
       text: messageInput,
-      timestamp: new Date(),
+      timestamp: time
     };
 
     props.ws.current.send(JSON.stringify(newMessage));
-    setMessages((prev) => [...prev, newMessage]);
+    setMessages((prev) => [...prev, {sender: true, message: messageInput, timestamp: time}]);
     setMessageInput('');
   };
 
@@ -73,12 +94,12 @@ const Chat = (props) => {
     <View
       style={[
         styles.messageContainer,
-        item.senderId === props.myuid
+        item.sender
           ? styles.myMessage
           : styles.theirMessage,
       ]}
     >
-      <Text style={styles.messageText}>{item.text}</Text>
+      <Text style={styles.messageText}>{item.message}</Text>
       <Text style={styles.timestamp}>
         {new Date(item.timestamp).toLocaleTimeString()}
       </Text>
@@ -111,11 +132,11 @@ const Chat = (props) => {
       </View>
 
       <FlatList
+        ref={flatListRef}
         data={messages}
         renderItem={renderMessage}
-        keyExtractor={(item) => item.timestamp.toString()}
+        keyExtractor={(item) => item.timestamp.toString() + item.sender.toString()}
         style={styles.messageList}
-        inverted
       />
 
       <View style={styles.inputContainer}>
@@ -182,7 +203,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
     backgroundColor: config.app.theme.creme,
-
   },
   messageInput: {
     flex: 1,

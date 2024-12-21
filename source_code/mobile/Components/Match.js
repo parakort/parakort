@@ -35,7 +35,7 @@ const Match = (props) => {
       left: 5,
     },
     rightArrow: {
-      display: mediaIndex < props.media.media.length - 1 ? "flex" : "none",
+      display: mediaIndex <  ((props?.media ? props.media.media.length : 0 )- 1 )? "flex" : "none",
       right: 5,
     },
     arrowText: {
@@ -98,59 +98,66 @@ const Match = (props) => {
     })
   ).current;
 
+  if (props.media)
+
   return (
-    <TouchableOpacity onPress={props.onPress}>
-      <Animated.View
-        style={{ transform: [{ translateX }] }}
-        {...panResponder.panHandlers}
-      >
-        <View style={styles.container}>
-          <View style={styles.imageContainer}>
-            <RetryableImage
-              uri={props.media.media[mediaIndex].uri}
-              style={styles.imageStyle}
-            />
+    <Animated.View
+      style={{ transform: [{ translateX }] }}
+      {...panResponder.panHandlers}
+    >
+      <TouchableOpacity onPress={props.onPress} activeOpacity={0.7}>
 
-            {/* Left Arrow */}
-            <TouchableOpacity
-              style={[styles.arrowButton, styles.leftArrow]}
-              onPress={() => setMediaIndex(mediaIndex - 1)}
-            >
-              <Text style={styles.arrowText}>{"<"}</Text>
-            </TouchableOpacity>
+      <View style={styles.container}>
 
-            {/* Right Arrow */}
-            <TouchableOpacity
-              style={[styles.arrowButton, styles.rightArrow]}
-              onPress={() => setMediaIndex(mediaIndex + 1)}
-            >
-              <Text style={styles.arrowText}>{">"}</Text>
-            </TouchableOpacity>
-          </View>
-          <View
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              width: '50%',
-              height: '100%',
-              justifyContent: 'space-evenly',
-              alignItems: 'center',
-            }}
+        <View style={styles.imageContainer}>
+          <RetryableImage
+            uri={props.media? props.media.media[mediaIndex].uri : ""}
+            style={styles.imageStyle}
+          />
+  
+          {/* Left Arrow */}
+          <TouchableOpacity
+            style={[styles.arrowButton, styles.leftArrow]}
+            onPress={() => setMediaIndex(mediaIndex - 1)}
           >
+            <Text style={styles.arrowText}>{"<"}</Text>
+          </TouchableOpacity>
+  
+          {/* Right Arrow */}
+          <TouchableOpacity
+            style={[styles.arrowButton, styles.rightArrow]}
+            onPress={() => setMediaIndex(mediaIndex + 1)}
+          >
+            <Text style={styles.arrowText}>{">"}</Text>
+          </TouchableOpacity>
+        </View>
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            width: '50%',
+            height: '100%',
+            justifyContent: 'space-evenly',
+            alignItems: 'center',
+          }}
+        >
             <Text>
               {props.media.profile.firstName} {props.media.profile.lastName},{" "}
               {props.media.profile.age}
             </Text>
-
-            <View style={styles.skillContainer}>
-              <SkillLevels sports={props.media.sports} />
-            </View>
+          
+  
+          <View style={styles.skillContainer}>
+            <SkillLevels sports={props.media.sports} />
           </View>
-          <SocialButtons socials={props.media.profile.socials} />
         </View>
-      </Animated.View>
-    </TouchableOpacity>
+        <SocialButtons socials={props.media.profile.socials} />
+      </View>
+      </TouchableOpacity>
+
+    </Animated.View>
   );
+  
 };
 
 export default Match;

@@ -2,8 +2,9 @@
   const dbConnect = require("./db/dbConnect");
   const User = require("./db/userModel");
   const Trial = require("./db/trialModel");
-  const Options = require("./db/optionsModel");
-  const Sport = require("./db/sportModel");
+  const Chat = require("./db/chatModel.js")
+  const Options = require("./db/optionsModel.js");
+  const Sport = require("./db/sportModel.js");
   const path = require('path');
   const cron = require('node-cron');
   var router = express.Router();
@@ -374,26 +375,60 @@ const wss = new WebSocket.Server({ port: 8080 });
 
 
 wss.on('connection', (ws) => {
-  ws.on('message', (message) => {
+  ws.on('message', async (message) => {
     const parsedMessage = JSON.parse(message);
-
+  
     if (parsedMessage.type === 'register') {
-      // Register the user connection
       users[parsedMessage.userId] = ws;
-      console.log("Websocket connected", parsedMessage.userId)
+      console.log("Websocket connected", parsedMessage.userId);
     } else if (parsedMessage.type === 'message') {
-
-      // Forward message to the recipient, if they are online
+  
       const recipientWs = users[parsedMessage.recipientId];
       if (recipientWs) {
-        recipientWs.send(JSON.stringify(parsedMessage));
+        recipientWs.send(JSON.stringify({type: "message", message: parsedMessage.text, timestamp: parsedMessage.timestamp, sender: false}));
       }
 
-      // Regardless of if they are online, 
-      // We need to update the chat database for both users (each user has one entry in the chat database.)
-       
+      // Forward the message and store it in each user's database document
+      let chatSender = await Chat.findOne({ user: parsedMessage.senderId });
+
+      if (!chatSender) {
+        chatSender = new Chat({ user: parsedMessage.senderId, chats: new Map() });
+      }
+
+      if (!chatSender.chats.has(parsedMessage.recipientId)) {
+        chatSender.chats.set(parsedMessage.recipientId, []);
+      }
+
+      chatSender.chats.get(parsedMessage.recipientId).push({
+        message: parsedMessage.text,
+        sender: true,
+        timestamp: parsedMessage.timestamp,
+      });
+
+      await chatSender.save();
+
+      // Find or create a chat for the recipient
+      let chatRecipient = await Chat.findOne({ user: parsedMessage.recipientId });
+      if (!chatRecipient) {
+        chatRecipient = new Chat({ user: parsedMessage.recipientId, chats: new Map() });
+      }
+
+      if (!chatRecipient.chats.has(parsedMessage.senderId)) {
+        chatRecipient.chats.set(parsedMessage.senderId, []);
+      }
+
+      chatRecipient.chats.get(parsedMessage.senderId).push({
+        message: parsedMessage.text,
+        sender: false,
+        timestamp: parsedMessage.timestamp,
+      });
+
+      await chatRecipient.save();
+  
     }
   });
+  
+  
 
   ws.on('close', () => {
     // Clean up user connections
@@ -404,6 +439,33 @@ wss.on('connection', (ws) => {
     }
   });
 });
+
+router.get('/messages/:senderId/:recipientId', async (req, res) => {
+  const { senderId, recipientId } = req.params;
+
+  try {
+    // Convert senderId and recipientId to ObjectId
+    const senderObjectId = new mongoose.Types.ObjectId(senderId);
+
+    // Find the chat for the sender and check if the chats Map has the recipientId as a key
+    const chat = await Chat.findOne({ user: senderObjectId });
+
+    if (chat && chat.chats.has(recipientId)) {
+      // Get the messages for the recipientId
+      const messages = chat.chats.get(recipientId);
+
+      return res.json(messages || []);
+    } else {
+      return res.status(404).json({ message: 'No messages found' });
+    }
+  } catch (error) {
+    console.error("Error loading messages:", error);
+    return res.status(500).json({ message: 'An error occurred', error });
+  }
+});
+
+
+
 
 
 

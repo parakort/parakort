@@ -3,7 +3,7 @@ require('dotenv').config();
 
 // Import models
 const Trial = require("./trialModel");
-const Options = require("./optionsModel");
+const Options = require("./optionsModel.js");
 
 async function dbConnect() {
   mongoose.connect(process.env.MONGO_URI, { dbName: process.env.APP_NAME })

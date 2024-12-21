@@ -139,9 +139,14 @@ export default function App() {
         console.log('WebSocket disconnected');
       };
 
+
+
       return () => {
         ws.current?.close(); // Clean up WebSocket connection
       };
+
+
+
     }
 
   }, [user])
@@ -158,7 +163,9 @@ export default function App() {
         );
       };
   }
+
   async function fetchData() {
+
 
     if (user)
     {
@@ -177,6 +184,22 @@ export default function App() {
     
 
   };
+
+
+  // User loads messages between them and a recipient
+  async function loadMessages(senderId, recipientId) {
+    try {
+      const response = await axios.get(`${BASE_URL}/messages/${senderId}/${recipientId}`);
+      return response.data; // Returns the array of messages
+    } catch (error) {
+
+      if (error.response.status == 404) return []
+
+      console.error("Error loading messages", error);
+      throw error; 
+    }
+  }
+
 
 
   // Update media item, replacing with new if existing
@@ -995,6 +1018,8 @@ function logIn(token)
 
     setFilters(res.data.user.filters)
     setMatches(res.data.user.matches)
+    setLikers(res.data.user.likers)
+    setDislikes(res.data.user.dislikes)
 
     // if we don't have a profile object, user has not yet been setup
     setSetupScreen(!res.data.user.profile)
@@ -1130,7 +1155,7 @@ if (showSplash)
     return (
       <>
           {/* Navigation is the actual Screen which gets displayed based on the tab cosen */}
-          <Navigation connectWs = {connectWs} ws = {ws} serverUrl = {BASE_URL} resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
+          <Navigation loadMessages = {loadMessages} connectWs = {connectWs} ws = {ws} serverUrl = {BASE_URL} resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
           
           {/* Confetti Screen */}
           <ConfettiScreen

@@ -10,7 +10,7 @@ const Matches = (props) => {
 
   // Display chat if we are chatting
   if (user) {
-    return <Chat connectWs = {props.connectWs} ws = {props.ws} myuid = {props.myuid} serverUrl = {props.serverUrl} user={user} setUser={setUser} />;
+    return <Chat loadMessages = {props.loadMessages} connectWs = {props.connectWs} ws = {props.ws} myuid = {props.myuid} serverUrl = {props.serverUrl} user={user} setUser={setUser} />;
   }
 
   if (props?.matches) {
