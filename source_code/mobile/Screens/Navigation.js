@@ -86,6 +86,7 @@ const Navigation = React.forwardRef((props, ref) => {
             likers={props.likers} 
             dislikes={props.dislikes} 
             matches={props.matches}
+            likerCount={props.likerCount}
           />
         }/>
 

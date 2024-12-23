@@ -317,25 +317,43 @@ router.post('/matchUser', async (req, res) => {
     // Return the status of whether we are a mutual match
     res.send(mutual)
 
-    // Update the swiping user's matches database with this user,
-    // and whether or not we are currently a mutual match.
-      try {
-        await User.findByIdAndUpdate(
-          req.body.source,
-          { $push: { matches: { uid: req.body.dest, mutual: mutual, timestamp: Date.now() } } },
-          { new: true } // Ensures the updated document is returned
-        );
-      } catch (err) {
-        console.error(err); // Print any errors
+    try {
+      // Build the update operation dynamically
+      const updateOperation = {
+        $push: {
+          matches: {
+            uid: req.body.dest,
+            mutual: mutual,
+            timestamp: Date.now(),
+            unread: true,
+          },
+        },
+      };
+    
+      if (mutual) {
+        // Add the $pull operation only if mutual is true
+        updateOperation.$pull = { likers: req.body.dest };
       }
+    
+      await User.findByIdAndUpdate(
+        req.body.source,
+        updateOperation,
+        { new: true } // Ensures the updated document is returned
+      );
+    } catch (err) {
+      console.error(err); // Print any errors
+    }
+    
 
     // If this match became mutual, update the other user's existing match object to be mutual, and perform notifications on frontend as arespult.
     if (mutual)
+    {
       User.updateOne(
         { _id: req.body.dest, 'matches.uid': req.body.source },  // Query to find the document and the specific UID
-        { $set: { 'matches.$.mutual': true, 'matches.$.timestamp': Date.now() } }     // Update operation to set `mutual` to true
-      );
+        { $set: { 'matches.$.mutual': true, 'matches.$.timestamp': Date.now(),  'matches.$.unread': true}, $pull: { likers: req.body.source }  },     // Update operation to set `mutual` to true
 
+      );
+    }
     // Let the destination user be aware of the changes
     forceUpdate(req.body.dest)
 
@@ -362,11 +380,33 @@ function forceUpdate(uid, sender, messagePreview, senderName)
 
 // Poll to get new data
 // Websocket forces a user to pull new data when we make them aware that there's an update.
+// This is where we pull Likers from, so the security is right here
+// if req.body.user is premium, return the 
 router.post('/getData', async (req, res) => {
-  const user = await User.findById(req.body.user, 'matches dislikes likers');
-  res.send(user)
+  try {
+    // Fetch user with specific fields
+    const user = await User.findById(req.body.user, 'matches dislikes likers premium');
 
-})
+    if (!user) {
+      return res.status(404).send({ error: "User not found" });
+    }
+
+    // Check if the user has premium access
+    if (user.premium) {
+      res.send(user);
+    } else {
+      // Exclude the likers array and return its count instead
+      const { matches, dislikes } = user;
+      const likerCount = user.likers.length;
+
+      res.send({ matches, dislikes, likerCount });
+    }
+  } catch (err) {
+    console.error("Error fetching user data:", err);
+    res.status(500).send({ error: "An error occurred while fetching data" });
+  }
+});
+
 
 // Sockets for end to end comms
 
@@ -1245,7 +1285,7 @@ router.delete('/deleteSport/:id', async (req, res) => {
     // Define fields to exclude from the user object (for security)
     const excludedFields = ["password"];
   
-    // Utility function to remove specified fields from user obj
+    // Utility function to remove specified fields from user object
     const excludeFields = (obj) => {
       const newObj = { ...obj };
       excludedFields.forEach(field => delete newObj[field]);
@@ -1260,13 +1300,22 @@ router.delete('/deleteSport/:id', async (req, res) => {
         { new: true }
       ).populate('filters.sports.sportId'); // Populate sportId in the filters.sports array
   
-      if (user) {
-        res.status(200).send({
-          user: excludeFields(user.toObject()),
-        });
+      if (!user) {
+        return res.status(404).send({ message: "User not found!" });
+      }
+  
+      const userObject = excludeFields(user.toObject());
+  
+      // Conditional response for premium and non-premium users
+      if (user.premium) {
+        res.status(200).send({ user: userObject });
       } else {
-        res.status(404).send({
-          message: "User not found!",
+        const { likers, ...rest } = userObject;
+        res.status(200).send({
+          user: {
+            ...rest,
+            likerCount: likers.length, // Replace `likers` with `likerCount`
+          },
         });
       }
     } catch (error) {
@@ -1276,6 +1325,7 @@ router.delete('/deleteSport/:id', async (req, res) => {
       });
     }
   });
+  
   
 
   // Change the password

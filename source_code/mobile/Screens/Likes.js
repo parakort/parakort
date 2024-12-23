@@ -9,6 +9,7 @@ const Likes = (props) => {
     .filter(match => match.mutual) // Filter only mutual matches
     .map(match => match.uid);      // Map to uid values
 
+
   if (props.likers && props.matches)
     return (
       <View style={styles.screen}>
@@ -25,6 +26,33 @@ const Likes = (props) => {
           ))}
       </View>
     );
+
+    {
+      if (props.likerCount == 0)
+        return (
+          
+          <View style={styles.screen}>
+            <Text style={{ fontSize: 25, fontWeight: "100", paddingBottom: 10 }}>New Likers</Text>
+
+            <View style ={{display: "flex", alignSelf: "center", alignContent: "center"}}>
+              <Text>Premium users can view their likers easily.</Text>
+              <Text>Upgrade now!</Text>
+
+            </View>
+          </View>
+      )
+      return (
+      <View style={styles.screen}>
+        <Text style={{ fontSize: 25, fontWeight: "100", paddingBottom: 10 }}>New Likers</Text>
+
+        <View style ={{display: "flex", alignSelf: "center", alignContent: "center"}}>
+          <Text>You have {props.likerCount > 0 ? `${props.likerCount} ` : ""}liker{props.likerCount == 1 ? "" : "s"}!</Text>
+          <Text>Upgrade to reveal their identit{props.likerCount == 1 ? "y" : "ies"}.</Text>
+
+        </View>
+      </View>
+      )
+    }
 };
 
 export default Likes;

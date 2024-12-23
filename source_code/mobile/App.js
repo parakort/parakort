@@ -93,7 +93,9 @@ export default function App() {
   const [media, setMedia] = useState(new Map())              // Links to local files of our matches, fetched synchronously
   const [matches, setMatches] = useState(null)          // UID array of our matched users
   const [dislikes, setDislikes] = useState(null)          
-  const [likers, setLikers] = useState(null)          
+  const [likers, setLikers] = useState(null)    
+  const [likerCount, setLikerCount] = useState(null)          
+
 
 
 
@@ -123,6 +125,10 @@ export default function App() {
   function finishedSetup() {
     setSetupScreen(false)
   }
+
+  useEffect(() => {
+
+  }, [currentSuggestion])
 
   // When messages change, make sure we mark messages as read if we are on the page
   useEffect(() => {
@@ -239,14 +245,100 @@ export default function App() {
     {
       const response = await axios.post(`${BASE_URL}/getData`, {user: user._id})
     
-        setMatches(response.data.matches)
-        setDislikes(response.data.dislikes)
-        setLikers(response.data.likers)
+      setMatches((prevMatches) => {
+        const newMatches = response.data.matches.filter(
+          (newMatch) => !prevMatches.some((prevMatch) => prevMatch.uid === newMatch.uid)
+        );
+      
+        // Should only be one
+        newMatches.forEach(async (match) => {
+
+          if (match.mutual)
+          {
+            // Download their media (it should already be, since we swiped on them, unless we say if match.mutual in getMedia())
+            if (!media.get(match.uid)) await downloadMediaFiles(match.uid)
+
+            Toast.show({
+              type: 'success',
+              text1: 'New match!',
+              text2: `${media.get(match.uid).profile.firstName + " " + media.get(match.uid).profile.lastName} matched you back!`,
+              onPress: async () => {
+            
+                setChatUser((prev) => ({ ...media.get(match.uid), uid: match.uid }));
+                navigationRef.current?.navigate('Matches');
+  
+                Toast.hide()
+              }
+            });
+
+          }
+        })
+      
+        // Combine old matches with new matches
+        return [...prevMatches, ...newMatches];
+      });
+
+      if (response.data.likers)
+      {
+        setLikers((prevLikers) => {
+          const newLikers = response.data.likers.filter(
+            (newLiker) => !prevLikers.some((prevLiker) => prevLiker === newLiker)
+          );
+
+        
+          // Should only be one
+          newLikers.forEach(async (liker) => {
+
+            // Download their media (it should already be, since we swiped on them, unless we say if liker.mutual in getMedia())
+            if (!media.get(liker)) await downloadMediaFiles(liker)
+
+            Toast.show({
+              type: 'error',
+              text1: 'New liker!',
+              text2: `${media.get(liker).profile.firstName + " " + media.get(liker).profile.lastName} liked you!`,
+              onPress: () => {
+            
+                navigationRef.current?.navigate('Likes');
+
+                Toast.hide()
+              }
+            });
+
+            
+          })
+        
+          // Combine old matches with new matches
+          return [...prevLikers, ...newLikers];
+        });
+      }
+      else  {
+        setLikerCount(response.data.likerCount)
+
+        if (response.data.likerCount > likerCount)
+        {
+          Toast.show({
+            type: 'error',
+            text1: 'Someone liked you!',
+            text2: response.data.likerCount > 1 ? `Tap to reveal ${response.data.likerCount} likers` : "Tap to reveal their identity!",
+            onPress: () => {
+          
+              navigationRef.current?.navigate('Likes');
+  
+              Toast.hide()
+            }
+          });
+        }
+
+        
+
+      }
+      setDislikes(response.data.dislikes)
 
        
 
         // Check for changes to show a message such as new match.
         // Can check a size difference in likers, and then, check matches for the new uid. 
+        
 
     }
     
@@ -689,6 +781,7 @@ function logDifferences(obj1, obj2, log) {
       // Download latest media for ourself & our matches / suggestions, in parallel.
       for (const uid of storedSuggestions.slice(1))  downloadMediaFiles(uid)
       for (const match of matches)          downloadMediaFiles(match.uid)
+      for (const liker of likers)          downloadMediaFiles(liker)
       
       downloadMediaFiles(user._id)
       
@@ -1085,13 +1178,15 @@ function logIn(token)
 
     setFilters(res.data.user.filters)
     setMatches(res.data.user.matches)
-    setLikers(res.data.user.likers)
+    if (res.data.user.likers) setLikers(res.data.user.likers)
+    else setLikerCount(res.data.user.likerCount)
+
     setDislikes(res.data.user.dislikes)
 
     // if we don't have a profile object, user has not yet been setup
     setSetupScreen(!res.data.user.profile)
 
-    // Do this last, because it will trigger the media downloads, and we need our matches and filters
+    // Do this last, because it will trigger the media downloads, and we need our matches and filters (and likers)
     // ready to go for downloading media and for generating suggestions.
     setProfile(res.data.user.profile)
 
@@ -1222,7 +1317,7 @@ if (showSplash)
     return (
       <>
           {/* Navigation is the actual Screen which gets displayed based on the tab cosen */}
-          <Navigation unread = {unread} ref = {navigationRef} messages = {messages} setMessages = {setMessages} chatUser={chatUser} setChatUser={setChatUser} loadMessages = {loadMessages} connectWs = {connectWs} ws = {ws} serverUrl = {BASE_URL} resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
+          <Navigation likerCount = {likerCount} unread = {unread} ref = {navigationRef} messages = {messages} setMessages = {setMessages} chatUser={chatUser} setChatUser={setChatUser} loadMessages = {loadMessages} connectWs = {connectWs} ws = {ws} serverUrl = {BASE_URL} resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
           
           {/* Confetti Screen */}
           <ConfettiScreen
