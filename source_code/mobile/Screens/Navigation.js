@@ -4,6 +4,8 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/Ionicons';
 
+import { View, StyleSheet } from 'react-native';
+
 import Discover from './Discover.js';
 import Profile from './Profile.js';
 import Matches from './Matches.js';
@@ -21,6 +23,18 @@ const MyTheme = {
   },
 };
 
+// Custom component for Matches tab icon
+const MatchesIcon = ({ focused, color, size, unread }) => (
+  <View style={styles.iconContainer}>
+    <Icon
+      name={focused ? 'chatbubble' : 'chatbubble-outline'}
+      size={size}
+      color={color}
+    />
+    {unread && <View style={styles.redDot} />}
+  </View>
+);
+
 const Tab = createBottomTabNavigator();
 
 const Navigation = React.forwardRef((props, ref) => {
@@ -31,22 +45,27 @@ const Navigation = React.forwardRef((props, ref) => {
       <Tab.Navigator
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color, size }) => {
+            if (route.name === 'Matches') {
+              return (
+                <MatchesIcon
+                  focused={focused}
+                  color={color}
+                  size={size}
+                  unread={props.unread}
+                />
+              );
+            }
             let iconName;
-            
             if (route.name === 'Discover') {
               iconName = focused ? 'search' : 'search-outline';
             } else if (route.name === 'Likes') {
               iconName = focused ? 'heart' : 'heart-outline';
-            } else if (route.name === 'Matches') {
-              iconName = focused ? 'chatbubble' : 'chatbubble-outline';
             } else if (route.name === 'Profile') {
               iconName = focused ? 'person' : 'person-outline';
             }
-            
             return <Icon name={iconName} size={size} color={color} />;
           },
-
-          headerShown: false, // Hide the header if not needed
+          headerShown: false,
         })}
       >
         <Tab.Screen name="Discover" children={()=>
@@ -70,22 +89,24 @@ const Navigation = React.forwardRef((props, ref) => {
           />
         }/>
 
-        <Tab.Screen name="Matches" children={()=>
-          <Matches 
-            messages={props.messages} 
-            setMessages={props.setMessages} 
-            user={props.chatUser} 
-            setUser={props.setChatUser} 
-            loadMessages={props.loadMessages} 
-            connectWs={props.connectWs} 
-            ws={props.ws} 
-            serverUrl={props.serverUrl} 
-            myuid={props.user._id} 
-            onSwipeLeft={props.unmatch} 
-            matches={props.matches} 
-            media={props.media}
-          />
-        }/>
+        <Tab.Screen name="Matches">
+          {() => (
+            <Matches
+              messages={props.messages}
+              setMessages={props.setMessages}
+              user={props.chatUser}
+              setUser={props.setChatUser}
+              loadMessages={props.loadMessages}
+              connectWs={props.connectWs}
+              ws={props.ws}
+              serverUrl={props.serverUrl}
+              myuid={props.user._id}
+              onSwipeLeft={props.unmatch}
+              matches={props.matches}
+              media={props.media}
+            />
+          )}
+        </Tab.Screen>
 
         <Tab.Screen name="Profile" children={()=>
           <Profile 
@@ -104,6 +125,21 @@ const Navigation = React.forwardRef((props, ref) => {
       </Tab.Navigator>
     </NavigationContainer>
   );
+});
+
+const styles = StyleSheet.create({
+  iconContainer: {
+    position: 'relative',
+  },
+  redDot: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'red',
+  },
 });
 
 export default Navigation;

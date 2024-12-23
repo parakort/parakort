@@ -34,6 +34,7 @@ const Matches = (props) => {
               onSwipeLeft={props.onSwipeLeft}
               onPress={() => props.setUser({ ...props?.media.get(item.uid), uid: item.uid })}
               myid={props.myuid}
+              unread = {item.unread}
             />
           )}
         />

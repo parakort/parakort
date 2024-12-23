@@ -380,7 +380,7 @@ wss.on('connection', (ws) => {
   
     if (parsedMessage.type === 'register') {
       users[parsedMessage.userId] = ws;
-      console.log("Websocket connected", parsedMessage.userId);
+      //console.log("Websocket connected", parsedMessage.userId);
     } else if (parsedMessage.type === 'message') {
   
       const recipientWs = users[parsedMessage.recipientId];
@@ -427,11 +427,16 @@ wss.on('connection', (ws) => {
 
 
       // Update matches for both users for the last chat timestamp
+
+      // Sets unread to true for the recipient. Caveat: If other user is already in the chat, shouldn't do this.
+      // Solution: useEffect with messages array for recipient, in here, set unread to false.
+
       await User.updateOne(
         { _id: parsedMessage.recipientId },
         { 
           $set: { 
-            "matches.$[elem].timestamp": Date.now() 
+            "matches.$[elem].timestamp": Date.now(),
+            "matches.$[elem].unread": true
           }
         },
         {
@@ -497,6 +502,26 @@ router.get('/messages/:senderId/:recipientId', async (req, res) => {
 
 
 
+// User read a message. Mark the chat as read for UI purposes
+// Here, we can also add an item to the chat array in the chat collection to add a read marker at this timestamp.
+router.post('/readMessage', async(req, res) => {
+  const resl = await User.updateOne(
+    { _id: req.body.recipientId },
+    { 
+      $set: { 
+        "matches.$[elem].unread": false
+      }
+    },
+    {
+      arrayFilters: [{ "elem.uid": req.body.senderId }],
+      new: true,
+    }
+  );
+
+
+  res.send()
+
+})
 
 
 

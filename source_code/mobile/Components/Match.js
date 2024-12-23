@@ -47,7 +47,7 @@ const Match = (props) => {
       display: 'flex',
       flexDirection: 'row',
       justifyContent: 'space-between',
-      backgroundColor: config.app.theme.creme,
+      backgroundColor: props.unread ? config.app.theme.grey : config.app.theme.creme,
       borderRadius: 15,
       borderColor: config.app.theme.black,
       borderWidth: 1,

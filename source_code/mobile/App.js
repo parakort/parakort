@@ -45,6 +45,7 @@ export default function App() {
   // Who are we currently chatting with?
   const [chatUser, setChatUser] = useState(null);
   const [messages, setMessages] = useState([])
+  const [unread, setUnread] = useState(false)
 
   
 
@@ -123,13 +124,44 @@ export default function App() {
     setSetupScreen(false)
   }
 
+  // When messages change, make sure we mark messages as read if we are on the page
   useEffect(() => {
-    //console.log(media)
-  }, [media])
+    if (chatUser && messages.length > 0) {
+    // If our currently opened chat is marked as unread, mark it as read
+      if (matches.find((item) => ( item.mutual && item.uid == chatUser.uid)).unread)
+      {
 
+        axios.post(`${BASE_URL}/readMessage`, {senderId: chatUser.uid, recipientId: user._id})
+        .then((res) => {
+
+
+          // update locally
+          setMatches((prevMatches) => 
+            prevMatches.map((item) => 
+              item.uid === chatUser.uid ? { ...item, unread: false } : item
+            )
+          );
+          
+        })
+      }
+      
+      
+        
+      
+    }
+  }, [messages, matches])
+
+
+  // When matches update, check if there is an unread message
   useEffect(() => {
+    if (matches)
+    {
+      setUnread(matches.some((item) => (item.mutual && item.unread)))
+    }
 
-  }, [currentSuggestion])
+  }, [matches])
+
+
 
   // Refresh
   useEffect(() => {
@@ -155,7 +187,7 @@ export default function App() {
                 if (!media.get(receivedMessage.sender))
                   await downloadMediaFiles(receivedMessage.sender)
             
-                setChatUser({ ...media.get(receivedMessage.sender), uid: receivedMessage.sender })
+                setChatUser((prev) => ({ ...media.get(receivedMessage.sender), uid: receivedMessage.sender }));
                 navigationRef.current?.navigate('Matches');
 
                 Toast.hide()
@@ -186,14 +218,6 @@ export default function App() {
 
   }, [user])
 
-  async function handleNotificationPress(uid)
-  {
-    if (!media.get(uid))
-      await downloadMediaFiles(uid)
-
-    setChatUser({ ...media.get(uid), uid: uid })
-    navigationRef.current?.navigate('Matches');
-  }
 
   function connectWs()
   {
@@ -1198,7 +1222,7 @@ if (showSplash)
     return (
       <>
           {/* Navigation is the actual Screen which gets displayed based on the tab cosen */}
-          <Navigation ref = {navigationRef} messages = {messages} setMessages = {setMessages} chatUser={chatUser} setChatUser={setChatUser} loadMessages = {loadMessages} connectWs = {connectWs} ws = {ws} serverUrl = {BASE_URL} resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
+          <Navigation unread = {unread} ref = {navigationRef} messages = {messages} setMessages = {setMessages} chatUser={chatUser} setChatUser={setChatUser} loadMessages = {loadMessages} connectWs = {connectWs} ws = {ws} serverUrl = {BASE_URL} resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
           
           {/* Confetti Screen */}
           <ConfettiScreen
