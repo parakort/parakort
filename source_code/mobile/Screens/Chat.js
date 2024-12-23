@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import config from "../app.json"
 const Chat = (props) => {
   const [messageInput, setMessageInput] = useState('');
   const flatListRef = useRef(null);
+
+  const messages = useMemo(() => props.messages, [props.messages]);
 
   useEffect(() => {
     async function loadMessages() {
@@ -42,7 +44,6 @@ const Chat = (props) => {
 
     loadMessages();
   }, [props.user]);
-
 
 
   function isSocketBroken(socket) {
@@ -78,11 +79,11 @@ const Chat = (props) => {
     };
 
     props.ws.current.send(JSON.stringify(newMessage));
-    props.setMessages((prev) => [...prev, {sender: true, message: messageInput, timestamp: time}]);
+    props.setMessages((prev) => [...prev, { sender: true, message: messageInput, timestamp: time }]);
     setMessageInput('');
   };
 
-  const renderMessage = ({ item }) => (
+  const renderMessage = useCallback(({ item }) => (
     <View
       style={[
         styles.messageContainer,
@@ -96,7 +97,7 @@ const Chat = (props) => {
         {new Date(item.timestamp).toLocaleTimeString()}
       </Text>
     </View>
-  );
+  ), []);
 
   return (
     <KeyboardAvoidingView
@@ -108,7 +109,7 @@ const Chat = (props) => {
           <Text style={styles.backButton}>{"< Back"}</Text>
         </TouchableOpacity>
 
-        <View style = {{display: "flex", flexDirection: "column", alignItems: "center"}}>
+        <View style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
           <RetryableImage
             style={{
               borderRadius: Dimensions.get('window').width * 0.1,
@@ -123,15 +124,15 @@ const Chat = (props) => {
         </View>
       </View>
 
-      <View style = {{flex: 1, paddingBottom: 10}}>
+      <View style={{ flex: 1, paddingBottom: 10 }}>
         <FlatList
           ref={flatListRef}
-          data={props.messages}
+          data={messages}
           renderItem={renderMessage}
           keyExtractor={(item) => item.timestamp.toString() + item.sender.toString()}
           style={styles.messageList}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({animated: true})}
-          onLayout={() => flatListRef.current?.scrollToEnd({animated: true})}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true, duration: 500 })}
+          onLayout={() => flatListRef.current?.scrollToEnd({ animated: true, duration: 500 })}
         />
       </View>
 
@@ -141,9 +142,11 @@ const Chat = (props) => {
           value={messageInput}
           onChangeText={setMessageInput}
           placeholder="Type a message..."
-          onFocus={() => {setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
-          }, 100)}}
+          onFocus={() => {
+            setTimeout(() => {
+              flatListRef.current?.scrollToEnd({ animated: true, duration: 500 });
+            }, 100);
+          }}
         />
         <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
           <Text style={styles.sendButtonText}>Send</Text>

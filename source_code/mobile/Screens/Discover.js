@@ -163,7 +163,13 @@ const SwipeableCard = (props) => {
   // called when swiping.
   const replaceCard = (right) => {
     
-    opacity.setValue(0);
+    // Stop and reset the animations
+    translateX.stopAnimation();
+    opacity.stopAnimation();
+
+    // Reset translate and opacity values
+    translateX.setValue(0);
+    opacity.setValue(1);
 
     Animated.sequence([
       // First animation: reset translation

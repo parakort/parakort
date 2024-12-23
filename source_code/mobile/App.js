@@ -43,7 +43,13 @@ export default function App() {
   const [haltSuggestLoop, setHaltSuggestLoop] = useState(false);
 
   // Who are we currently chatting with?
+  // Closure is created when the onMessage registers, so we create references which won't result in reading stale state.
   const [chatUser, setChatUser] = useState(null);
+  const chatUserRef = useRef(chatUser);
+  useEffect(() => {
+    chatUserRef.current = chatUser?.uid; // Update ref whenever state changes
+  }, [chatUser]);
+
   const [messages, setMessages] = useState([])
   const [unread, setUnread] = useState(false)
 
@@ -74,6 +80,7 @@ export default function App() {
 
   const [subscribed, setSubscribed] = useState(false)
 
+
   // State value of 'booting' - true while we wait to reach the server, false when we have connected (show splash screen while true)
   const [showSplash, setShowSplash] = useState(true)
   
@@ -90,7 +97,13 @@ export default function App() {
   const [profile, setProfile] = useState(null)
 
   // Where user data is stored
+  // A reference exists and is to be used in a context where closure exsists such as in registered callbacks like .onmessage webhooks.
   const [media, setMedia] = useState(new Map())              // Links to local files of our matches, fetched synchronously
+  const mediaRef = useRef(media);
+  useEffect(() => {
+    mediaRef.current = media; // Update ref whenever state changes
+  }, [media]);
+
   const [matches, setMatches] = useState(null)          // UID array of our matched users
   const [dislikes, setDislikes] = useState(null)          
   const [likers, setLikers] = useState(null)    
@@ -126,7 +139,23 @@ export default function App() {
     setSetupScreen(false)
   }
 
+  const [retry, setRetry] = useState(true)
+
   useEffect(() => {
+    if (currentSuggestion)
+    {
+      // re-enable retry if current suggestion fails
+      setRetry(true)
+    }
+    if (!currentSuggestion && retry)
+    {
+      setRetry(false)
+
+      setTimeout(() => {
+        resumeSuggestLoop(false)
+      }, 1000)
+    }
+
 
   }, [currentSuggestion])
 
@@ -150,12 +179,8 @@ export default function App() {
           
         })
       }
-      
-      
-        
-      
     }
-  }, [messages, matches])
+  }, [ matches])
 
 
   // When matches update, check if there is an unread message
@@ -182,7 +207,7 @@ export default function App() {
         if (receivedMessage.type === 'update') {
           fetchData()
 
-          if (receivedMessage.sender && receivedMessage.sender != chatUser.uid)
+          if (receivedMessage.sender && receivedMessage.sender != chatUserRef.current)
           { 
             // We got a message from this user, and the app is open. Put a notification if we aren't on a chat with them
             Toast.show({
@@ -190,10 +215,10 @@ export default function App() {
               text1: receivedMessage.senderName,
               text2: receivedMessage.messagePreview,
               onPress: async () => {
-                if (!media.get(receivedMessage.sender))
+                if (!mediaRef.current.get(receivedMessage.sender))
                   await downloadMediaFiles(receivedMessage.sender)
             
-                setChatUser((prev) => ({ ...media.get(receivedMessage.sender), uid: receivedMessage.sender }));
+                setChatUser((prev) => ({ ...mediaRef.current.get(receivedMessage.sender), uid: receivedMessage.sender }));
                 navigationRef.current?.navigate('Matches');
 
                 Toast.hide()
@@ -274,8 +299,9 @@ export default function App() {
           }
         })
       
-        // Combine old matches with new matches
-        return [...prevMatches, ...newMatches];
+
+        // Return the total value that came through, before we split it
+        return response.data.matches;
       });
 
       if (response.data.likers)
@@ -307,8 +333,8 @@ export default function App() {
             
           })
         
-          // Combine old matches with new matches
-          return [...prevLikers, ...newLikers];
+          // Return both new and old (before we split)
+          return response.data.likers;
         });
       }
       else  {
