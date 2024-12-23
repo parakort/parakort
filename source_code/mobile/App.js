@@ -13,6 +13,7 @@ import { getLocation } from './utils/location.js';
 //import { NetworkInfo } from 'react-native-network-info';
 import config from "./app.json"
 import RNFS from 'react-native-fs';
+import Toast from 'react-native-toast-message';
 
 
 
@@ -41,9 +42,19 @@ export default function App() {
 
   const [haltSuggestLoop, setHaltSuggestLoop] = useState(false);
 
+  // Who are we currently chatting with?
+  const [chatUser, setChatUser] = useState(null);
+  const [messages, setMessages] = useState([])
+
+  
+
+
   // SOCKET CONNECTION
 
   const ws = useRef(null); // WebSocket reference
+
+  // Navigation ref, so we can change pages programatically
+  const navigationRef = useRef(null);
 
 
 
@@ -132,6 +143,30 @@ export default function App() {
         const receivedMessage = JSON.parse(event.data);
         if (receivedMessage.type === 'update') {
           fetchData()
+
+          if (receivedMessage.sender && receivedMessage.sender != chatUser.uid)
+          { 
+            // We got a message from this user, and the app is open. Put a notification if we aren't on a chat with them
+            Toast.show({
+              type: 'info',
+              text1: receivedMessage.senderName,
+              text2: receivedMessage.messagePreview,
+              onPress: async () => {
+                if (!media.get(receivedMessage.sender))
+                  await downloadMediaFiles(receivedMessage.sender)
+            
+                setChatUser({ ...media.get(receivedMessage.sender), uid: receivedMessage.sender })
+                navigationRef.current?.navigate('Matches');
+
+                Toast.hide()
+              }
+            });
+
+          }
+        }
+
+        if (receivedMessage.type === 'message') {
+          setMessages((prev) => [...prev, JSON.parse(event.data)]);
         }
       };
 
@@ -150,6 +185,15 @@ export default function App() {
     }
 
   }, [user])
+
+  async function handleNotificationPress(uid)
+  {
+    if (!media.get(uid))
+      await downloadMediaFiles(uid)
+
+    setChatUser({ ...media.get(uid), uid: uid })
+    navigationRef.current?.navigate('Matches');
+  }
 
   function connectWs()
   {
@@ -416,7 +460,6 @@ const updateProfile = (key, newValue) => {
 
       // Media object holds the user's profile and media
       let userMedia = {profile: userProfile, media: localMedia, sports: sports}
-      
       
       // we have the media for this user. Store it in the media Map, which will store in async storage also
       setMedia((prevMedia) => {
@@ -1155,7 +1198,7 @@ if (showSplash)
     return (
       <>
           {/* Navigation is the actual Screen which gets displayed based on the tab cosen */}
-          <Navigation loadMessages = {loadMessages} connectWs = {connectWs} ws = {ws} serverUrl = {BASE_URL} resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
+          <Navigation ref = {navigationRef} messages = {messages} setMessages = {setMessages} chatUser={chatUser} setChatUser={setChatUser} loadMessages = {loadMessages} connectWs = {connectWs} ws = {ws} serverUrl = {BASE_URL} resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
           
           {/* Confetti Screen */}
           <ConfettiScreen
@@ -1226,6 +1269,8 @@ if (showSplash)
               </TouchableWithoutFeedback>
             </View>
           </Modal>
+
+          <Toast />
         </>
     );
   }

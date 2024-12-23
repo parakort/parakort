@@ -322,7 +322,7 @@ router.post('/matchUser', async (req, res) => {
       try {
         await User.findByIdAndUpdate(
           req.body.source,
-          { $push: { matches: { uid: req.body.dest, mutual: mutual } } },
+          { $push: { matches: { uid: req.body.dest, mutual: mutual, timestamp: Date.now() } } },
           { new: true } // Ensures the updated document is returned
         );
       } catch (err) {
@@ -333,7 +333,7 @@ router.post('/matchUser', async (req, res) => {
     if (mutual)
       User.updateOne(
         { _id: req.body.dest, 'matches.uid': req.body.source },  // Query to find the document and the specific UID
-        { $set: { 'matches.$.mutual': true } }     // Update operation to set `mutual` to true
+        { $set: { 'matches.$.mutual': true, 'matches.$.timestamp': Date.now() } }     // Update operation to set `mutual` to true
       );
 
     // Let the destination user be aware of the changes
@@ -348,14 +348,14 @@ router.post('/matchUser', async (req, res) => {
 
 
 // Force a user to get new data, forcing them to call the below endpoint.
-function forceUpdate(uid)
+function forceUpdate(uid, sender, messagePreview, senderName)
 {
   // websocket will tell this uid, if they are online (app open),
   // to perform a call to /getData
   // Forward message to the recipient, if they are online
   const recipientWs = users[uid];
   if (recipientWs) {
-    recipientWs.send(JSON.stringify({type: 'update'}));
+    recipientWs.send(JSON.stringify({type: 'update', sender: sender, messagePreview: messagePreview, senderName: senderName}));
   }
 
 }
@@ -424,6 +424,37 @@ wss.on('connection', (ws) => {
       });
 
       await chatRecipient.save();
+
+
+      // Update matches for both users for the last chat timestamp
+      await User.updateOne(
+        { _id: parsedMessage.recipientId },
+        { 
+          $set: { 
+            "matches.$[elem].timestamp": Date.now() 
+          }
+        },
+        {
+          arrayFilters: [{ "elem.uid": parsedMessage.senderId }],
+          new: true,
+        }
+      );
+      await User.updateOne(
+        { _id: parsedMessage.senderId },
+        { 
+          $set: { 
+            "matches.$[elem].timestamp": Date.now() 
+          }
+        },
+        {
+          arrayFilters: [{ "elem.uid": parsedMessage.recipientId }],
+          new: true,
+        }
+      );
+
+      // Force the recipient to refresh their match list
+      // The second parameter alerts them that there is a new message from this user
+      forceUpdate(parsedMessage.recipientId, parsedMessage.senderId, parsedMessage.text.substring(0,20), parsedMessage.senderName)
   
     }
   });

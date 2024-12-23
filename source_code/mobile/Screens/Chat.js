@@ -14,7 +14,6 @@ import RetryableImage from '../Components/RetryableImage';
 import config from "../app.json"
 
 const Chat = (props) => {
-  const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
   const flatListRef = useRef(null);
 
@@ -24,22 +23,17 @@ const Chat = (props) => {
         if (props?.user) {
 
           // Clear old messages
-          setMessages([])
+          props.setMessages([])
 
           // Bind socket event to listen for functions
           if (isSocketBroken(props.ws.current))
             props.connectWs()
 
-          props.ws.current.onmessage = (event) => {
-            const receivedMessage = JSON.parse(event.data);
-            if (receivedMessage.type === 'message') {
-              setMessages((prev) => [...prev, receivedMessage]);
-            }
-          };
 
           // Load messages
           const messages = await props.loadMessages(props.myuid, props.user.uid);
-          setMessages(messages);
+          props.setMessages(messages);
+          
         }
       } catch (error) {
         console.error("Error setting messages", error);
@@ -49,10 +43,7 @@ const Chat = (props) => {
     loadMessages();
   }, [props.user]);
 
-  useEffect(() => {
-    // Scroll to the bottom when messages update
-    flatListRef.current?.scrollToEnd({ animated: true });
-  }, [messages]);
+
 
   function isSocketBroken(socket) {
     try {
@@ -80,13 +71,14 @@ const Chat = (props) => {
     const newMessage = {
       type: 'message',
       senderId: props.myuid,
+      senderName: props.senderName,
       recipientId: props.user.uid,
       text: messageInput,
       timestamp: time
     };
 
     props.ws.current.send(JSON.stringify(newMessage));
-    setMessages((prev) => [...prev, {sender: true, message: messageInput, timestamp: time}]);
+    props.setMessages((prev) => [...prev, {sender: true, message: messageInput, timestamp: time}]);
     setMessageInput('');
   };
 
@@ -131,13 +123,17 @@ const Chat = (props) => {
         </View>
       </View>
 
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.timestamp.toString() + item.sender.toString()}
-        style={styles.messageList}
-      />
+      <View style = {{flex: 1, paddingBottom: 10}}>
+        <FlatList
+          ref={flatListRef}
+          data={props.messages}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.timestamp.toString() + item.sender.toString()}
+          style={styles.messageList}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({animated: true})}
+          onLayout={() => flatListRef.current?.scrollToEnd({animated: true})}
+        />
+      </View>
 
       <View style={styles.inputContainer}>
         <TextInput
@@ -145,6 +141,9 @@ const Chat = (props) => {
           value={messageInput}
           onChangeText={setMessageInput}
           placeholder="Type a message..."
+          onFocus={() => {setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 100)}}
         />
         <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
           <Text style={styles.sendButtonText}>Send</Text>
@@ -177,16 +176,18 @@ const styles = StyleSheet.create({
   },
   messageContainer: {
     padding: 10,
-    marginVertical: 5,
+    marginBottom: 10,
     borderRadius: 10,
   },
   myMessage: {
     alignSelf: 'flex-end',
     backgroundColor: '#d1e7ff',
+
   },
   theirMessage: {
     alignSelf: 'flex-start',
     backgroundColor: '#f1f1f1',
+
   },
   messageText: {
     fontSize: 16,

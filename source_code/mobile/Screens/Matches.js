@@ -1,36 +1,42 @@
 import React, { useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, FlatList } from 'react-native';
 import styles from '../styles.js';
 import Match from '../Components/Match.js';
 import Chat from './Chat.js';
 
 const Matches = (props) => {
-  // User reference for chat system
-  const [user, setUser] = useState(null);
+
+
 
   // Display chat if we are chatting
-  if (user) {
-    return <Chat loadMessages = {props.loadMessages} connectWs = {props.connectWs} ws = {props.ws} myuid = {props.myuid} serverUrl = {props.serverUrl} user={user} setUser={setUser} />;
+  if (props.user) {
+    return <Chat senderName = {props.media.get(props.myuid).profile.firstName + " " + props.media.get(props.myuid).profile.lastName} messages = {props.messages} setMessages = {props.setMessages} loadMessages={props.loadMessages} connectWs={props.connectWs} ws={props.ws} myuid={props.myuid} serverUrl={props.serverUrl} user={props.user} setUser={props.setUser} />;
   }
 
   if (props?.matches) {
+    // Sort matches by timestamp in descending order
+    const sortedMatches = props.matches
+      .filter(match => match.mutual) // Filter to include only matches with mutual: true
+      .sort((a, b) => b.timestamp - a.timestamp); // Sort by descending timestamp
+
     return (
       <View style={styles.screen}>
         <Text style={{ fontSize: 25, fontWeight: '100', paddingBottom: 10 }}>
           My Matches
         </Text>
-        {props.matches
-          .filter((match) => match.mutual) // Filter to include only matches with mutual: true
-          .map((match, index) => (
+        <FlatList
+          data={sortedMatches}
+          keyExtractor={(item, index) => index.toString()}
+          renderItem={({ item }) => (
             <Match
-              key={index}
-              match={match.uid} // Only send the ID of the user : we know it is mutual due to the above comment.
-              media={props?.media.get(match.uid)}
+              match={item.uid} // Only send the ID of the user
+              media={props?.media.get(item.uid)}
               onSwipeLeft={props.onSwipeLeft}
-              onPress={() => setUser({ ...props?.media.get(match.uid), uid: match.uid })}
-              myid={props.myid}
+              onPress={() => props.setUser({ ...props?.media.get(item.uid), uid: item.uid })}
+              myid={props.myuid}
             />
-          ))}
+          )}
+        />
       </View>
     );
   }
