@@ -11,31 +11,35 @@ import {
   StyleSheet,
 } from 'react-native';
 import RetryableImage from '../Components/RetryableImage';
-import config from "../app.json"
+import config from "../app.json";
 
 const Chat = (props) => {
   const [messageInput, setMessageInput] = useState('');
+  const [debouncedMessageInput, setDebouncedMessageInput] = useState('');
   const flatListRef = useRef(null);
 
   const messages = useMemo(() => props.messages, [props.messages]);
 
   useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedMessageInput(messageInput);
+    }, 100); // Adjust debounce
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [messageInput]);
+
+  useEffect(() => {
     async function loadMessages() {
       try {
         if (props?.user) {
+          props.setMessages([]);
 
-          // Clear old messages
-          props.setMessages([])
+          if (isSocketBroken(props.ws.current)) props.connectWs();
 
-          // Bind socket event to listen for functions
-          if (isSocketBroken(props.ws.current))
-            props.connectWs()
-
-
-          // Load messages
           const messages = await props.loadMessages(props.myuid, props.user.uid);
           props.setMessages(messages);
-          
         }
       } catch (error) {
         console.error("Error setting messages", error);
@@ -45,45 +49,42 @@ const Chat = (props) => {
     loadMessages();
   }, [props.user]);
 
-
   function isSocketBroken(socket) {
     try {
-      // Define conditions for a "working" socket
       const isSocketIdValid = typeof socket._socketId === "number";
       const isReadyStateValid = socket.readyState === 3;
       const isSubscriptionsValid = Array.isArray(socket._subscriptions) && socket._subscriptions.length === 0;
 
-      // Return true if all conditions are met
       return isSocketIdValid && isReadyStateValid && isSubscriptionsValid;
     } catch (error) {
       console.error("Invalid JSON string provided:", error.message);
-      return false; // Invalid input, cannot determine
+      return false;
     }
   }
 
   const sendMessage = () => {
-    if (messageInput.trim() === '' || !props.ws.current) return;
+    if (debouncedMessageInput.trim() === '' || !props.ws.current) return;
 
-    if (isSocketBroken(props.ws.current))
-      props.connectWs()
+    if (isSocketBroken(props.ws.current)) props.connectWs();
 
-    const time = new Date()
+    const time = new Date();
 
     const newMessage = {
       type: 'message',
       senderId: props.myuid,
       senderName: props.senderName,
       recipientId: props.user.uid,
-      text: messageInput,
-      timestamp: time
+      text: debouncedMessageInput,
+      timestamp: time,
     };
 
     props.ws.current.send(JSON.stringify(newMessage));
-    props.setMessages((prev) => [...prev, { sender: true, message: messageInput, timestamp: time }]);
+    props.setMessages((prev) => [...prev, { sender: true, message: debouncedMessageInput, timestamp: time }]);
     setMessageInput('');
   };
 
   const renderMessage = useCallback(({ item }) => (
+    
     <View
       style={[
         styles.messageContainer,
@@ -93,11 +94,27 @@ const Chat = (props) => {
       ]}
     >
       <Text style={styles.messageText}>{item.message}</Text>
-      <Text style={styles.timestamp}>
-        {new Date(item.timestamp).toLocaleTimeString()}
+      <Text style={[styles.timestamp, item.sender ? {textAlign: "right"} : {textAlign: "left"}]}>
+        {formattedDate(item.timestamp)}
       </Text>
     </View>
   ), []);
+
+  const formattedDate = (timestamp) => {
+    const date = new Date(timestamp);
+
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    let hours = date.getHours();
+    const minutes = date.getMinutes();
+    const isPM = hours >= 12;
+
+    hours = hours % 12 || 12;
+
+    const formattedMinutes = minutes.toString().padStart(2, '0');
+
+    return `${month}/${day} ${hours}:${formattedMinutes} ${isPM ? 'PM' : 'AM'}`;
+  };
 
   return (
     <KeyboardAvoidingView
@@ -105,17 +122,13 @@ const Chat = (props) => {
       style={styles.screen}
     >
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => props.setUser(null)}>
+        <TouchableOpacity onPress={() => props.setUser(null)} style={styles.backButtonContainer}>
           <Text style={styles.backButton}>{"< Back"}</Text>
         </TouchableOpacity>
 
-        <View style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <View style={styles.profileContainer}>
           <RetryableImage
-            style={{
-              borderRadius: Dimensions.get('window').width * 0.1,
-              height: Dimensions.get('window').width * 0.2,
-              width: Dimensions.get('window').width * 0.2,
-            }}
+            style={styles.profileImage}
             uri={props.user.media[0].uri}
           />
           <Text style={styles.userName}>
@@ -125,16 +138,18 @@ const Chat = (props) => {
       </View>
 
       <View style={{ flex: 1, paddingBottom: 10 }}>
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={(item) => item.timestamp.toString() + item.sender.toString()}
-          style={styles.messageList}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true, duration: 500 })}
-          onLayout={() => flatListRef.current?.scrollToEnd({ animated: true, duration: 500 })}
-        />
+      <FlatList
+        ref={flatListRef}
+        data={messages.slice().reverse()} // Reverse the messages array
+        renderItem={renderMessage}
+        keyExtractor={(item) => item.timestamp.toString() + item.sender.toString()}
+        style={styles.messageList}
+        inverted={true} // Inverts the list
+        // onEndReached={props.loadMoreMessages} To load older messages
+        // onEndReachedThreshold={0.5} // Trigger loading when 50% near the top
+      />
       </View>
+
 
       <View style={styles.inputContainer}>
         <TextInput
@@ -143,9 +158,9 @@ const Chat = (props) => {
           onChangeText={setMessageInput}
           placeholder="Type a message..."
           onFocus={() => {
-            setTimeout(() => {
-              flatListRef.current?.scrollToEnd({ animated: true, duration: 500 });
-            }, 100);
+            // setTimeout(() => {
+            //   flatListRef.current?.scrollToEnd({ animated: true, duration: 500 });
+            // }, 100);
           }}
         />
         <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
@@ -159,19 +174,33 @@ const Chat = (props) => {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    marginTop: 60,
+    marginTop: "5%",
   },
   header: {
-    paddingHorizontal: 10,
-    flexDirection: 'column',
+    height: Dimensions.get("window").height * 0.2,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative", // Allows absolute positioning within the header
+  },
+  backButtonContainer: {
+    position: "absolute",
+    left: 10,
   },
   backButton: {
-    marginRight: 10,
     fontSize: 16,
+  },
+  profileContainer: {
+    alignItems: "center",
+  },
+  profileImage: {
+    borderRadius: Dimensions.get("window").width * 0.1,
+    height: Dimensions.get("window").width * 0.2,
+    width: Dimensions.get("window").width * 0.2,
   },
   userName: {
     fontSize: 20,
-    fontWeight: "200"
+    fontWeight: "200",
+    marginTop: 10,
   },
   messageList: {
     flex: 1,
@@ -179,40 +208,37 @@ const styles = StyleSheet.create({
   },
   messageContainer: {
     padding: 10,
-    marginBottom: 10,
+    marginTop: 10,
     borderRadius: 10,
   },
   myMessage: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#d1e7ff',
-
+    alignSelf: "flex-end",
+    backgroundColor: "#d1e7ff",
   },
   theirMessage: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#f1f1f1',
-
+    alignSelf: "flex-start",
+    backgroundColor: "#f1f1f1",
   },
   messageText: {
     fontSize: 16,
   },
   timestamp: {
     fontSize: 12,
-    color: 'gray',
-    textAlign: 'right',
+    color: "gray",
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 10,
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: "#e0e0e0",
     backgroundColor: config.app.theme.creme,
   },
   messageInput: {
     flex: 1,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderRadius: 20,
     marginRight: 10,
   },
@@ -223,9 +249,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   sendButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
   },
 });
+
 
 export default Chat;

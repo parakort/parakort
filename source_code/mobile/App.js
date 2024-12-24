@@ -14,6 +14,7 @@ import { getLocation } from './utils/location.js';
 import config from "./app.json"
 import RNFS from 'react-native-fs';
 import Toast from 'react-native-toast-message';
+import { Vibration } from 'react-native';
 
 
 
@@ -209,6 +210,9 @@ export default function App() {
 
           if (receivedMessage.sender && receivedMessage.sender != chatUserRef.current)
           { 
+            // Long buzz since we're not in the chat
+            Vibration.vibrate(400);
+
             // We got a message from this user, and the app is open. Put a notification if we aren't on a chat with them
             Toast.show({
               type: 'info',
@@ -228,8 +232,10 @@ export default function App() {
           }
         }
 
-        if (receivedMessage.type === 'message') {
+        if (chatUserRef.current && receivedMessage.type === 'message') {
           setMessages((prev) => [...prev, JSON.parse(event.data)]);
+          // Short buzz since we're in the chat already
+          Vibration.vibrate(100);
         }
       };
 
@@ -283,6 +289,9 @@ export default function App() {
             // Download their media (it should already be, since we swiped on them, unless we say if match.mutual in getMedia())
             if (!media.get(match.uid)) await downloadMediaFiles(match.uid)
 
+            // Two buzzes for a new liker
+            Vibration.vibrate([100, 100, 100, 100]);
+
             Toast.show({
               type: 'success',
               text1: 'New match!',
@@ -317,6 +326,8 @@ export default function App() {
 
             // Download their media (it should already be, since we swiped on them, unless we say if liker.mutual in getMedia())
             if (!media.get(liker)) await downloadMediaFiles(liker)
+            // Two buzzes for a new liker
+            Vibration.vibrate([100, 100, 100, 100]);
 
             Toast.show({
               type: 'error',
@@ -342,6 +353,9 @@ export default function App() {
 
         if (response.data.likerCount > likerCount)
         {
+          // Two buzzes for a new liker
+          Vibration.vibrate([100, 100, 100, 100]);
+
           Toast.show({
             type: 'error',
             text1: 'Someone liked you!',
@@ -361,9 +375,6 @@ export default function App() {
       setDislikes(response.data.dislikes)
 
        
-
-        // Check for changes to show a message such as new match.
-        // Can check a size difference in likers, and then, check matches for the new uid. 
         
 
     }
