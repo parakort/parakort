@@ -178,7 +178,6 @@ const SwipeableCard = (props) => {
       fadeInAnimation,
     ]).start(); // Start the sequence
 
-    //resetTranslateAnimation.start();
 
     swipe(right);
     

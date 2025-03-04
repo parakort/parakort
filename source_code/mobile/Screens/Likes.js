@@ -1,70 +1,125 @@
-import React, { useMemo, useCallback } from 'react';
-import { View, Text } from 'react-native';
-import styles from '../styles.js';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import Liker from '../Components/Liker.js';
+import Subscribe from '../Components/Subscribe.js';
 
 const Likes = (props) => {
-  const matchUids = useMemo(() => 
+  const matchUids = useMemo(() =>
     props.matches
       .filter(match => match.mutual)
-      .map(match => match.uid), 
+      .map(match => match.uid),
     [props.matches]
   );
-
-  const filteredLikers = useMemo(() => 
+  
+  const filteredLikers = useMemo(() =>
     props.likers
-      .filter(liker => 
-        !props.dislikes.includes(liker) && 
+      .filter(liker =>
+        !props.dislikes.includes(liker) &&
         !matchUids.includes(liker)
-      ), 
+      ),
     [props.likers, props.dislikes, matchUids]
   );
-
-  function handleSwipeLeft (liker)
-    { props.onSwipeLeft(liker) }
-
-
-    function handleSwipeLeft (liker)
-    { props.onSwipeRight(liker) }
-
-  if (props.likers && props.matches)
+  
+  function handleSwipeLeft(liker) { 
+    props.onSwipeLeft(liker); 
+  }
+  
+  function handleSwipeRight(liker) { 
+    props.onSwipeRight(liker); 
+  }
+  
+  const purchase = async () => {
+    // This would be implemented by you to handle purchases
+    console.log('Purchase initiated');
+    // Additional purchase logic here
+  };
+  
+  // If user has likers and is subscribed, show the likers
+  if (props.subscribed && props.likers && props.matches) {
     return (
       <View style={styles.screen}>
-        <Text style={{ fontSize: 25, fontWeight: "100", paddingBottom: 10 }}>New Likers</Text>
-
+        <Text style={styles.headerText}>New Likers</Text>
         {filteredLikers.map((liker, index) => (
-          <Liker 
-            onSwipeLeft={handleSwipeLeft} 
-            onSwipeRight={handleSwipeRight} 
-            key={index} 
-            index={index} 
-            liker={liker} 
-            media={props.media.get(liker)} 
+          <Liker
+            onSwipeLeft={handleSwipeLeft}
+            onSwipeRight={handleSwipeRight}
+            key={index}
+            index={index}
+            liker={liker}
+            media={props.media.get(liker)}
           />
         ))}
       </View>
     );
-
-  if (props.likerCount == 0)
+  }
+  
+  // If user has no likers
+  if (props.likerCount === 0) {
     return (
       <View style={styles.screen}>
-        <Text style={{ fontSize: 25, fontWeight: "100", paddingBottom: 10 }}>New Likers</Text>
-        <View style={{ display: "flex", alignSelf: "center", alignContent: "center" }}>
-          <Text>Premium users can view their likers easily.</Text>
-          <Text>Upgrade now!</Text>
+        <Text style={styles.headerText}>New Likers</Text>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No one has liked your profile yet.</Text>
+          <Text style={styles.emptySubtext}>Check back soon!</Text>
         </View>
       </View>
     );
-
+  }
+  
+  // If user has likers but isn't subscribed, show the premium option
   return (
-    <View style={styles.screen}>
-      <Text style={{ fontSize: 25, fontWeight: "100", paddingBottom: 10 }}>New Likers</Text>
-      <View style={{ display: "flex", alignSelf: "center", alignContent: "center" }}>
-        <Text>You have {props.likerCount > 0 ? `${props.likerCount} ` : ""}liker{props.likerCount == 1 ? "" : "s"}!</Text>
-        <Text>Upgrade to reveal their identit{props.likerCount == 1 ? "y" : "ies"}.</Text>
-      </View>
+    <View style={styles.fullScreen}>
+      <Subscribe 
+        subscribed={props.subscribed} 
+        purchase={purchase} 
+        likerCount={props.likerCount}
+      />
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#f5f5f5',
+  },
+  fullScreen: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  headerText: {
+    fontSize: 28,
+    fontWeight: "300",
+    color: '#333',
+    paddingBottom: 16,
+    paddingHorizontal: 8,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    marginHorizontal: 16,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#424242',
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 16,
+    color: '#757575',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+});
 
 export default Likes;
