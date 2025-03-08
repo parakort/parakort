@@ -30,7 +30,7 @@ const BASE_URL = config.app.server
 const DEMO_URL = "https://youtu.be/udKK51jYs7M"
 
 // RevCat API
-const APPL_API = "appl_iymEcrjJXGyUyYLMNqGXZYiaKvP"
+const APPL_API = "appl_nXWrNaSRSUiJEYHJmYKpMnIcdUb"
 const GOOG_API = "goog_NxhhAZhHJkJSHDfsFAPtYIyEClP"
 
 export default function App() {
@@ -79,7 +79,7 @@ export default function App() {
   const [authenticated, setAuthenticated] = useState(false)
   const [setupScreen, setSetupScreen] = useState(true)
 
-  const [subscribed, setSubscribed] = useState(false)
+  const [subscriptionTier, setSubscriptionTier] = useState(null);
 
 
   // State value of 'booting' - true while we wait to reach the server, false when we have connected (show splash screen while true)
@@ -1206,7 +1206,7 @@ function logIn(token)
   .then(async (res) => {
 
     setTokens(res.data.tokens)
-    setSubscribed(res.data.user.subscribed)
+    setSubscriptionTier(res.data.user.subscription_tier)
 
     // user will be used for the immutable fields such as name, email, id.
     // if we bundle all of it into user, like bundling filters too, we can't isolate state changes.
@@ -1276,53 +1276,74 @@ function logIn(token)
   })
 }
 
-// Purchase subscription
-const purchase = async () => {
+// Purchase subscription with tier system
+const purchase = async (tier) => {
   try {
-      // Try to make the purchase
-      //Purchases.getOfferings()
-      products = await Purchases.getProducts(['cards']);
-      product = products[0]
-      //console.log(product)
-      try {
-        const {customerInfo, productIdentifier} = await Purchases.purchaseStoreProduct(product);
-        if (typeof customerInfo.entitlements.active['pro'] !== "undefined") {
-          // Successfull purchase, grant tokens
-          axios.post(`${BASE_URL}/newSubscriber`, {user_id: user._id})
-          .then((response) => {
-            // Update tokens locally
-            setTokens(response.data.tokens)
-            setSubscribed(true)
-            console.log("Subscribed!")
-
-            // UI feedback here for subscription
-
-          })
-          .catch((e) => {
-            // User was charged, but my server made an error
-            // issue refund / log the error
-            console.log(e)
-          })
-        }
-        else
-        {
-          //console.log("LOCKED")
-        }
-      } catch (e) {
-        if (!e.userCancelled) {
-          console.log(e)
-        }
+    // Define mapping between tiers and RevenueCat offerings package identifiers
+    const tierPackages = {
+      'pro': 'pro',
+      'premium': 'premium',
+      'elite': 'elite'
+    };
+    
+    // Validate tier
+    if (!tierPackages[tier]) {
+      throw new Error('Invalid subscription tier');
+    }
+    
+    // Get all offerings
+    const offerings = await Purchases.getOfferings();
+    
+    if (!offerings.current) {
+      throw new Error('No offerings available');
+    }
+    
+    // Find the package that matches the requested tier
+    const packageToPurchase = offerings.current.availablePackages.find(
+      pkg => pkg.identifier === tierPackages[tier]
+    );
+    
+    if (!packageToPurchase) {
+      throw new Error(`No package found for ${tier} tier`);
+    }
+    
+    try {
+      // Make the purchase
+      const { customerInfo, productIdentifier } = await Purchases.purchasePackage(packageToPurchase);
+      
+      // Check if the subscription is active for the purchased tier
+      if (typeof customerInfo.entitlements.active[tier] !== "undefined") {
+        // Successful purchase, grant tokens and update subscription status
+        axios.post(`${BASE_URL}/newSubscriber`, {
+          user_id: user._id,
+          tier: tier // Include the tier in the request
+        })
+        .then((response) => {
+          // Update tokens locally
+          setTokens(response.data.tokens);
+          setSubscriptionTier(tier); // New state to track the subscription tier
+          console.log(`Subscribed to ${tier} tier!`);
+          // UI feedback here for subscription
+        })
+        .catch((e) => {
+          // User was charged, but server made an error
+          // Issue refund / log the error
+          console.log('Backend error:', e);
+        });
+      } else {
+        console.log("Subscription not active");
       }
-
-      
-      
+    } catch (e) {
+      if (!e.userCancelled) {
+        console.log('Purchase error:', e);
+      }
+    }
+  } catch (e) {
+    // User canceled, no wifi etc
+    alert('Error Purchasing. You were not charged.');
+    console.log('Setup error:', e);
   }
-  catch(e)
-  { // User canceled, no wifi etc
-      alert('Error Purchasing. You were not charged.')
-  }
-}
-
+};
 
 
 
@@ -1354,7 +1375,7 @@ if (showSplash)
     return (
       <>
           {/* Navigation is the actual Screen which gets displayed based on the tab cosen */}
-          <Navigation likerCount = {likerCount} unread = {unread} ref = {navigationRef} messages = {messages} setMessages = {setMessages} chatUser={chatUser} setChatUser={setChatUser} loadMessages = {loadMessages} connectWs = {connectWs} ws = {ws} serverUrl = {BASE_URL} resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} subscribed = {subscribed} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
+          <Navigation subscriptionTier = {subscriptionTier} Purchases = {Purchases} likerCount = {likerCount} unread = {unread} ref = {navigationRef} messages = {messages} setMessages = {setMessages} chatUser={chatUser} setChatUser={setChatUser} loadMessages = {loadMessages} connectWs = {connectWs} ws = {ws} serverUrl = {BASE_URL} resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
           
           {/* Confetti Screen */}
           <ConfettiScreen

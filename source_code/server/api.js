@@ -120,132 +120,84 @@ const pingUrl = () => {
 cron.schedule('*/10 * * * *', pingUrl);
 pingUrl();
 
-  async function maintainUsers()
-  {
-    const currentDate = new Date();
-
-    // Email me a confirmation that the server is running
-    const mailOptions = {
-      from: process.env.MAILER_USER,
-      to: process.env.ADMIN_EMAIL,
-      subject: `Successful ${process.env.APP_NAME} Maitenance`,
-      text: `Hi Peter, just a confirmation that maitenance has ran for all ${process.env.APP_NAME} users successfully.`,
-    };
+async function maintainUsers() {
+  const currentDate = new Date();
   
-    // Send the email
-    transporter.sendMail(mailOptions, (error, info) => {
-      if (error) {
-        console.log('Error sending warning email:', error);
-      } else {
-      }
-    });
-
-    // Calculate the date 10 days from now
-    const futureDate = new Date(currentDate);
-    futureDate.setDate(currentDate.getDate() + 10);
-
-    // Format the date as "Month Day, Year"
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    const formattedDate = futureDate.toLocaleDateString('en-US', options);
-
-
-    try {
-
-      // SUBSCRIPTIONS
-
-      // Find all users that renew today and check/update entitlements
-      let users = await User.find({renewal_date: currentDate.getDate()})
-        
-      // Iterate through each user and update tokens if they have an active entitlement
-      for (const user of users) {
-        let subscribed = await isSubscribed(user._id)
-        if (subscribed)
-        {
-          await User.updateOne({ _id: user._id }, { $set: { tokens: process.env.TOKEN_COUNT } });
-        }
-        else
-        {
-          // It looks like they expired today. Remove tokens.
-          // Update: They did pay for month long access.. so dont remove the tokens. 
-          await User.updateOne({ _id: user._id }, { $set: { renewal_date: 0 } });
-          // Be sure to stop renewing them.
-        }
-        
-      }
-
-
-    
-      // Increment 'dormant' field by 1 for all users
-      await User.updateMany({}, { $inc: { dormant: 1 } });
-
-      // Find and remove users with 'marked_for_deletion' and 'email_confirmed' both set to false
-      await User.deleteMany({ marked_for_deletion: true });
-
-      // Email a warning to all inactive users
-      const dormantUsers = await User.find({
-        $and: [
-          { dormant: { $gte: 365 } }
-        ]
-      });
-
-      // Send each email to dormant users who are not subscribed
-      dormantUsers.forEach((user) => {
-        
-        // Dont delete paying users
-        if (!isSubscribed(user._id))
-        {
-          const mailOptions = {
-            from: process.env.MAILER_USER,
-            to: user.email,
-            subject: `${process.env.APP_NAME} account scheduled for deletion`,
-            text: `Your ${process.env.APP_NAME} account hasn't been accessed in ${user.dormant} days, 
-            and data is scheduled to be purged from our system on ${formattedDate}. 
-            To keep your data, simply log in to your account. We hope to see you soon!`,
-          };
-        
-          // Send the email
-          transporter.sendMail(mailOptions, (error, info) => {
-            if (error) {
-              console.log('Error sending warning email:', error);
-            } else {
-            }
-          });
+  // Email admin a confirmation that the server is running
+  const mailOptions = {
+    from: process.env.MAILER_USER,
+    to: process.env.ADMIN_EMAIL,
+    subject: `Successful ${process.env.APP_NAME} Maintenance`,
+    text: `Hi Peter, just a confirmation that maintenance has run for all ${process.env.APP_NAME} users successfully.`,
+  };
   
-
-        }
-        
-      });
-
-
-      // MARK UNCONFIRMED USERS FOR DELETION
-      try {
-        // Find users where 'email_confirmed' is false
-        const unconfirmedUsers = await User.find({ email_confirmed: false });
+  // Send the email
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.log('Error sending maintenance confirmation email:', error);
+    }
+  });
+  
+  // SUBSCRIPTIONS
+  // Find all users that renew today and check/update entitlements
+  let users = await User.find({renewal_date: currentDate.getDate()});
+  
+  // Track maintenance statistics
+  let stats = {
+    total: users.length,
+    renewed: 0,
+    expired: 0,
+    byTier: {
+      pro: 0,
+      premium: 0,
+      elite: 0
+    }
+  };
+  
+  // Define token counts for each tier
+  const tierTokens = {
+    'pro': parseInt(process.env.PRO_TOKEN_COUNT),
+    'premium': parseInt(process.env.PREMIUM_TOKEN_COUNT),
+    'elite': parseInt(process.env.ELITE_TOKEN_COUNT)
+  };
+  
+  // Iterate through each user and update tokens if they have an active entitlement
+  for (const user of users) {
+    // Get user's current subscription tier (default to 'pro' if not set)
+    const tier = user.subscription_tier || 'pro';
     
-        // For all unconfirmed users prepare to mark for deletion
-        // If they are not subscribed
-        const updatePromises = unconfirmedUsers
-        .filter(user => !isSubscribed(user._id))
-        .map((user) => {
-          user.marked_for_deletion = true;
-          return user.save();
-        });
-
+    // Check if user is still subscribed to their tier
+    const subscribed = await isSubscribed(user._id, tier);
     
-        // Execute all the update operations
-        await Promise.all(updatePromises);
-    
-      } catch (error) {
-        console.error('Error marking users for deletion:', error);
-      }
-
-
-    } catch (error) {
-      console.error('Error updating users:', error);
+    if (subscribed) {
+      // User is still subscribed, renew tokens based on their tier
+      const tokenCount = tierTokens[tier] || tierTokens['pro'];
+      
+      await User.updateOne(
+        { _id: user._id }, 
+        { $set: { tokens: tokenCount } }
+      );
+      
+      // Update statistics
+      stats.renewed++;
+      stats.byTier[tier]++;
+    } else {
+      // It looks like they expired today. Don't remove tokens but stop future renewals.
+      await User.updateOne(
+        { _id: user._id }, 
+        { $set: { renewal_date: 0 } }
+      );
+      
+      stats.expired++;
     }
   }
-
-
+  
+  // Log maintenance statistics
+  console.log(`Maintenance complete: ${stats.renewed}/${stats.total} subscriptions renewed`);
+  console.log(`Renewed by tier - Pro: ${stats.byTier.pro}, Premium: ${stats.byTier.premium}, Elite: ${stats.byTier.elite}`);
+  
+  return stats;
+}
 
 
 
@@ -931,56 +883,65 @@ router.post('/updateField', async (req, res) => {
 
 
 
-  async function isSubscribed(user_id) {
-    const maxRetries = 3; // Maximum number of retry attempts
-    let retries = 0;
+async function isSubscribed(user_id, tier = 'pro') {
+  const maxRetries = 3; // Maximum number of retry attempts
+  let retries = 0;
   
-    while (retries < maxRetries) {
-      try {
-        const options = {
-          method: 'GET',
-          url: `https://api.revenuecat.com/v1/subscribers/${user_id}`,
-          headers: { accept: 'application/json', Authorization: `Bearer ${REVENUECAT_API_KEY}` },
-        };
+  // Map tiers to their corresponding product identifiers
+  const tierProducts = {
+    'pro': 'pro_subscription',
+    'premium': 'premium_subscription',
+    'elite': 'elite_subscription'
+  };
   
-        const response = await axios.request(options);
+  // Get the product identifier for the requested tier
+  const productIdentifier = tierProducts[tier] || tierProducts['pro'];
   
-        // The user
-        const subscriber = response.data.subscriber;
-        const entitlements = subscriber.entitlements;
-  
-        // Look at the user's entitlements to check for cards
-        for (const value of Object.values(entitlements)) {
-          if (value['product_identifier'] === 'cards') {
-            // Check if it is active
-            const expirationTime = new Date(value.expires_date);
-            const currentTime = new Date();
-            return expirationTime > currentTime;
-          }
-        }
-  
-        // If no relevant entitlement was found, assume not subscribed
-        return false;
-      } catch (error) {
-        if (error.response && error.response.status === 429) {
-          const retryAfterHeader = error.response.headers['Retry-After'];
-          if (retryAfterHeader) {
-            const retryAfterMs = parseInt(retryAfterHeader)
-            console.log(`Too Many Requests. Retrying after ${retryAfterMs} milliseconds...`);
-            await wait(retryAfterMs);
-          } else {
-            console.log('Too Many Requests. No Retry-After header found.');
-          }
-          retries++;
-        } else {
-          // Handle other types of errors or non-retryable errors
-          return false;
+  while (retries < maxRetries) {
+    try {
+      const options = {
+        method: 'GET',
+        url: `https://api.revenuecat.com/v1/subscribers/${user_id}`,
+        headers: { accept: 'application/json', Authorization: `Bearer ${REVENUECAT_API_KEY}` },
+      };
+      
+      const response = await axios.request(options);
+      // The user
+      const subscriber = response.data.subscriber;
+      const entitlements = subscriber.entitlements;
+      
+      // Look at the user's entitlements to check for the specific tier
+      for (const value of Object.values(entitlements)) {
+        if (value['product_identifier'] === productIdentifier) {
+          // Check if it is active
+          const expirationTime = new Date(value.expires_date);
+          const currentTime = new Date();
+          return expirationTime > currentTime;
         }
       }
+      
+      // If no relevant entitlement was found, assume not subscribed
+      return false;
+    } catch (error) {
+      if (error.response && error.response.status === 429) {
+        const retryAfterHeader = error.response.headers['Retry-After'];
+        if (retryAfterHeader) {
+          const retryAfterMs = parseInt(retryAfterHeader);
+          console.log(`Too Many Requests. Retrying after ${retryAfterMs} milliseconds...`);
+          await wait(retryAfterMs);
+        } else {
+          console.log('Too Many Requests. No Retry-After header found.');
+        }
+        retries++;
+      } else {
+        // Handle other types of errors or non-retryable errors
+        return false;
+      }
     }
-  
-    throw new Error(`Request to get isSubscribed failed after ${maxRetries} retries`);
   }
+  
+  throw new Error(`Request to get isSubscribed failed after ${maxRetries} retries`);
+}
   
   function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -1198,71 +1159,83 @@ router.delete('/deleteSport/:id', async (req, res) => {
 });
 
    // A user just subscribed
-  // Verify their reciept => grant tokens
-  router.post('/newSubscriber', async(req, res) => {
-    let user_id = req.body.user_id
-    // Anyone can call this endpoint
-    // Implement security by checking subscription status
-    const subscribed = await isSubscribed(user_id);
-
-    if (subscribed)
-    {
-      let currentDate = new Date();
-      let dayofmonth = currentDate.getDate()
-      // User is verified! Grant the tokens
-      User.findByIdAndUpdate(
-        req.body.user_id,
-        {
-          // Sets the tokens to TOKEN_COUNT and stores the date on which to renew.
-          $set: { tokens: process.env.TOKEN_COUNT, renewal_date: dayofmonth} // Set tokens
-        }, {new: true}).then((user) => {
+  // Verify their receipt => grant tokens based on tier
+router.post('/newSubscriber', async(req, res) => {
+  let user_id = req.body.user_id;
+  let tier = req.body.tier || 'pro'; // Default to 'pro' if no tier specified
+  
+  // Anyone can call this endpoint
+  // Implement security by checking subscription status
+  const subscribed = await isSubscribed(user_id, tier); // Modified to check specific tier
+  
+  if (subscribed) {
+    let currentDate = new Date();
+    let dayofmonth = currentDate.getDate();
     
-          if (user)
-          {
-            // Send me a notice email
-            const mailOptions = {
-              from: process.env.MAILER_USER,
-              to: process.env.MAILER_USER,
-              bcc: process.env.ADMIN_EMAIL,
-              subject: `🎉 ${process.env.APP_NAME} NEW SUBSCRIBER! `,
-              text: `Woohoo! 🥳 ${user.email} just subscribed!`,
-            };
-          
-            // Send the email
-            transporter.sendMail(mailOptions, (error, info) => {
-              if (error) {
-                console.log('Error sending warning email:', error);
-              } else {
-              }
-            });
-
-            res.status(200).send({
-              message: "Success!",
-              tokens: user.tokens
-            });
+    // Define token counts for each tier
+    const tierTokens = {
+      'pro': parseInt(process.env.PRO_TOKEN_COUNT),
+      'premium': parseInt(process.env.PREMIUM_TOKEN_COUNT),
+      'elite': parseInt(process.env.ELITE_TOKEN_COUNT)
+    };
+    
+    // Get token count based on tier, default to PRO if tier not found
+    const tokenCount = tierTokens[tier] || tierTokens['pro'];
+    
+    // User is verified! Grant the tokens based on tier
+    User.findByIdAndUpdate(
+      req.body.user_id,
+      {
+        // Sets the tokens based on tier and stores the date on which to renew
+        $set: { 
+          tokens: tokenCount, 
+          renewal_date: dayofmonth,
+          subscription_tier: tier // Store the user's subscription tier
+        
+        }
+      }, 
+      {new: true}
+    ).then((user) => {
+      if (user) {
+        // Send notification email
+        const mailOptions = {
+          from: process.env.MAILER_USER,
+          to: process.env.MAILER_USER,
+          bcc: process.env.ADMIN_EMAIL,
+          subject: `🎉 ${process.env.APP_NAME} NEW ${tier.toUpperCase()} SUBSCRIBER! `,
+          text: `Woohoo! 🥳 ${user.email} just subscribed to the ${tier.toUpperCase()} plan!`,
+        };
+        
+        // Send the email
+        transporter.sendMail(mailOptions, (error, info) => {
+          if (error) {
+            console.log('Error sending notification email:', error);
           }
-          else
-          {
-            res.status(404).send({
-              message: "User not found!",
-            });
-          }
-        })
-        .catch((e) => {
-          res.status(500).send({
-            message: e,
-          });
-        })
-
-
-    }
-    else
-    {
-      // User is not subscribed return 401 unauthorized.
-      res.status(401).send({status: "Unauthorized"})
-    }
-
-  })
+        });
+        
+        res.status(200).send({
+          message: "Success!",
+          tokens: user.tokens,
+          tier: user.subscription_tier
+        });
+      }
+      else {
+        res.status(404).send({
+          message: "User not found!",
+        });
+      }
+    })
+    .catch((e) => {
+      res.status(500).send({
+        message: e,
+      });
+    });
+  }
+  else {
+    // User is not subscribed return 401 unauthorized.
+    res.status(401).send({status: "Unauthorized"});
+  }
+});
   
   // Mark user as active when app is opened
   router.post('/appOpened', (req, res) => {

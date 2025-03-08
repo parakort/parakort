@@ -107,7 +107,12 @@ likers: {
 test: {
     type: Boolean,
     default: false
-}
+},
+
+subscription_tier: {
+    type: String,
+    enum: ['pro', 'premium', 'elite'],
+  }
 
 }, { strict: false })
 

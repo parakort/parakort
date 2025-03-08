@@ -28,11 +28,6 @@ const Likes = (props) => {
     props.onSwipeRight(liker); 
   }
   
-  const purchase = async () => {
-    // This would be implemented by you to handle purchases
-    console.log('Purchase initiated');
-    // Additional purchase logic here
-  };
   
   // If user has likers and is subscribed, show the likers
   if (props.subscribed && props.likers && props.matches) {
@@ -70,9 +65,10 @@ const Likes = (props) => {
   return (
     <View style={styles.fullScreen}>
       <Subscribe 
-        subscribed={props.subscribed} 
-        purchase={purchase} 
+        Purchases={props.Purchases}
         likerCount={props.likerCount}
+        purchase={props.purchase}
+        subscriptionTier = {props.subscriptionTier}
       />
     </View>
   );
