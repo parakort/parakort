@@ -6,6 +6,7 @@ import SkillPicker from '../Components/SkillPicker';
 import SocialModal from '../Components/SocialModal';
 import DemographicPicker from '../Components/DemographicPicker'
 import RetryableImage from '../Components/RetryableImage';
+import Subscribe from '../Components/Subscribe';
 
 
 
@@ -16,7 +17,7 @@ const Profile = (props) => {
     // Keybaord open, then hide stuff to fix android bug    
     const [isKeyboardOpen, setKeyboardOpen] = useState(false);
     const [isModalVisible, setModalVisible] = useState(false);
-    const [curPlatform, setCurPlatform] = useState('penis') // platform to change link to
+    const [curPlatform, setCurPlatform] = useState('') // platform to change link to
 
     const screenWidth = Dimensions.get('window').width;
     const imageSize = screenWidth * 0.3;
@@ -29,7 +30,34 @@ const Profile = (props) => {
     // This is a cosmetic copy of our profile pics.
     // Do not change this directly - it is changed by the Media component
     // to display changes immediately, and is not persisted.
-    const [media, setMedia] = useState(props.media.get(props.user._id)? props.media.get(props.user._id).media : [])
+    const [media, setMedia] = useState(props.media.get(props.user._id)?.media || []);
+
+useEffect(() => {
+  let retries = 0;
+  const maxRetries = 10;
+  
+  const tryGetMedia = () => {
+    const mediaContent = props.media.get(props.user._id)?.media;
+    if (mediaContent) {
+      setMedia(mediaContent);
+      return true;
+    }
+    
+    if (retries < maxRetries) {
+      retries++;
+      setTimeout(tryGetMedia, 300); // Retry after 300ms
+      return false;
+    }
+    
+    return false;
+  };
+  
+  // Start the retry mechanism if initial media is empty
+  if (!media || media.length === 0) {
+    tryGetMedia();
+  }
+}, [props.media, props.user._id, media]);
+    
 
     useEffect(() => {
       const keyboardDidShowListener = Keyboard.addListener(
@@ -147,6 +175,17 @@ const Profile = (props) => {
       if (curFilter !== page) setCurFilter(page)
     }
 
+    // Show subscribe page if paywall is true
+    if (props.paywall){
+      return(
+        <Subscribe 
+          Purchases={props.Purchases}
+          purchase={props.purchase}
+          subscriptionTier = {props.subscriptionTier}
+          close = {() => props.setPaywall(false)}
+        />
+      )
+    }
     
     // Show delete page if deleting
     if (delAccount)
@@ -276,6 +315,27 @@ const Profile = (props) => {
                   returnKeyType="done"
                   onEndEditing={() => { props.updateProfile("bio", bio)}}
                   />
+              </View>
+
+              {/* Enhanced Premium Button */}
+              <View style={styles.premiumButtonContainer}>
+                <TouchableOpacity
+                  style={styles.premiumButton}
+                  onPress={() => props.setPaywall(true)}
+                >
+                  <View style={styles.premiumButtonContent}>
+                    <View style={styles.premiumIconContainer}>
+                      <Text style={styles.starIcon}>★</Text>
+                    </View>
+                    <View style={styles.premiumTextContainer}>
+                      <Text style={styles.premiumButtonText}>View Plan Upgrades</Text>
+                      <Text style={styles.premiumButtonSubtext}>Get unlimited matches & more!</Text>
+                    </View>
+                    <View style={styles.arrowContainer}>
+                      <Text style={styles.arrowIcon}>→</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
               </View>
 
               
@@ -409,13 +469,11 @@ const Profile = (props) => {
 
 const styles = StyleSheet.create({
   iconContainer: {
-
     display: "flex",
     flexDirection: "row",
     justifyContent: "space-evenly"
   },
   icon: { 
-    
     width: "32%",
     height: "auto",
     aspectRatio: 1,
@@ -444,13 +502,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
   container: {
     flex: 1,
     margin: 10,
-    
   },
-
   spreadContainer: {
     justifyContent: 'space-between', // Pushes content and buttons to the top and bottom, respectively
     flex: 1,
@@ -492,7 +547,6 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: config.app.theme.red
-    
   },
   navButton: {
     padding: 10,
@@ -524,6 +578,72 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: Platform.OS === 'ios' && Platform.isPad ? 30 : 10
+  },
+  
+  // New styles for the premium button
+  premiumButtonContainer: {
+    marginVertical: 15,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.5,
+    elevation: 6,
+  },
+  premiumButton: {
+    backgroundColor: "#1e1e1e", // Dark background for premium feel
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: config.app.theme.red,
+  },
+  premiumButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  premiumIconContainer: {
+    backgroundColor: "#FFD700", // Gold color for the star
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  starIcon: {
+    color: "#1e1e1e",
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  premiumTextContainer: {
+    flex: 1,
+  },
+  premiumButtonText: {
+    color: "#FFD700", // Gold text for premium feel
+    fontSize: 17,
+    fontWeight: 'bold',
+  },
+  premiumButtonSubtext: {
+    color: config.app.theme.creme,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  arrowContainer: {
+    backgroundColor: config.app.theme.red,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
+  },
+  arrowIcon: {
+    color: config.app.theme.creme,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

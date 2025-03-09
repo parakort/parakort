@@ -185,7 +185,8 @@ async function maintainUsers() {
       // It looks like they expired today. Don't remove tokens but stop future renewals.
       await User.updateOne(
         { _id: user._id }, 
-        { $set: { renewal_date: 0 } }
+        { $set: { renewal_date: 0, subscription_tier: null} }
+        
       );
       
       stats.expired++;
@@ -207,6 +208,126 @@ async function maintainUsers() {
   router.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
+
+// Notifications
+// Route to save a push token for the authenticated user
+router.post('/push-token', async (req, res) => {
+  try {
+    const { token, device } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({ message: 'Token is required' });
+    }
+    
+    // Get the user from the auth middleware
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Add the token to user
+    await user.addPushToken(token, device);
+    
+    res.status(200).json({ message: 'Push token saved successfully' });
+  } catch (error) {
+    console.error('Error saving push token:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Route to remove a push token
+router.delete('/push-token', async (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({ message: 'Token is required' });
+    }
+    
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    await user.removePushToken(token);
+    
+    res.status(200).json({ message: 'Push token removed successfully' });
+  } catch (error) {
+    console.error('Error removing push token:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// To send a push to a user
+
+/**
+ * Sends a push notification to a specific user
+ * @param {string} userId - The ID of the user to send the notification to
+ * @param {string} title - The notification title
+ * @param {string} body - The notification body content
+ * @param {Object} [data={}] - Optional additional data to include with the notification
+ * @returns {Promise<Object>} Result containing success status and data or error
+ */
+async function sendNotificationToUser(userId, title, body, data = {}) {
+  try {
+    if (!title || !body) {
+      throw new Error('Title and body are required');
+    }
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    const result = await user.sendPushNotification(title, body, data);
+    return {
+      success: true,
+      message: 'Notification sent successfully',
+      data: result.data
+    };
+  } catch (error) {
+    console.error('Error sending notification:', error);
+    return {
+      success: false,
+      message: error.message,
+      error
+    };
+  }
+}
+
+// // Admin route to send notification to a specific user
+// router.post('/send-notification/:userId', async (req, res) => {
+//   try {
+    
+//     const { title, body, data } = req.body;
+//     const { userId } = req.params;
+    
+//     if (!title || !body) {
+//       return res.status(400).json({ message: 'Title and body are required' });
+//     }
+    
+//     const user = await User.findById(userId);
+    
+//     if (!user) {
+//       return res.status(404).json({ message: 'User not found' });
+//     }
+    
+//     const result = await user.sendPushNotification(title, body, data || {});
+    
+//     if (result.success) {
+//       res.status(200).json({ message: 'Notification sent successfully', data: result.data });
+//     } else {
+//       res.status(400).json({ message: 'Failed to send notification', error: result.error });
+//     }
+//   } catch (error) {
+//     console.error('Error sending notification:', error);
+//     res.status(500).json({ message: 'Server error', error: error.message });
+//   }
+// });
+
+
 
 // Endpoint to unmatch two users and add to dislikes
 // src is doing the action, dest needs to be made aware, if they are on the app
@@ -902,7 +1023,7 @@ async function isSubscribed(user_id, tier = 'pro') {
       const options = {
         method: 'GET',
         url: `https://api.revenuecat.com/v1/subscribers/${user_id}`,
-        headers: { accept: 'application/json', Authorization: `Bearer ${REVENUECAT_API_KEY}` },
+        headers: { accept: 'application/json', Authorization: `Bearer ${process.env.REVENUECAT_API_KEY}` },
       };
       
       const response = await axios.request(options);
@@ -923,6 +1044,7 @@ async function isSubscribed(user_id, tier = 'pro') {
       // If no relevant entitlement was found, assume not subscribed
       return false;
     } catch (error) {
+      console.log(error)
       if (error.response && error.response.status === 429) {
         const retryAfterHeader = error.response.headers['Retry-After'];
         if (retryAfterHeader) {

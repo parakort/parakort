@@ -39,6 +39,7 @@ const Tab = createBottomTabNavigator();
 
 const Navigation = React.forwardRef((props, ref) => {
 
+
   return (
     <NavigationContainer theme={MyTheme} ref={ref}>
       
@@ -87,9 +88,10 @@ const Navigation = React.forwardRef((props, ref) => {
             dislikes={props.dislikes} 
             matches={props.matches}
             likerCount={props.likerCount}
-            Purchases = {props.Purchases}
-            purchase = {props.purchase}
-            subscriptionTier = {props.subscriptionTier}
+            subscriptionTier={props.subscriptionTier}
+
+            paywall = {() => {props.setPaywall(true)}}
+            
 
           />
         }/>
@@ -125,6 +127,12 @@ const Navigation = React.forwardRef((props, ref) => {
             updateProfile={props.updateProfile} 
             logout={props.logout} 
             deleteAccount={props.deleteAccount}
+
+            paywall = {props.paywall}
+            setPaywall = {props.setPaywall}
+            Purchases = {props.Purchases}
+            purchase = {props.purchase}
+            subscriptionTier = {props.subscriptionTier}
           />
         }/>
       </Tab.Navigator>

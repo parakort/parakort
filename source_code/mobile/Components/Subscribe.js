@@ -17,7 +17,7 @@ import config from "../app.json";
 
 const { width } = Dimensions.get('window');
 
-const Subscribe = ({ Purchases, likerCount, purchase, subscriptionTier }) => {
+const Subscribe = ({ Purchases, purchase, subscriptionTier, close }) => {
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTier, setSelectedTier] = useState('Premium'); // Default selected tier
@@ -97,52 +97,6 @@ const checkSubscriptionStatus = async () => {
     } catch (e) {
       console.log('Error fetching offerings:', e);
       return [];
-    }
-  };
-
-  // Purchase subscription
-  const purchaseTier = async (tier) => {
-    try {
-      // Find the package that matches the requested tier
-      const packageToPurchase = packages.find(pkg => pkg.identifier.toLowerCase() === tier.toLowerCase());
-      
-      if (!packageToPurchase) {
-        throw new Error(`No package found for ${tier} tier`);
-      }
-      
-      try {
-        // Make the purchase
-        if (packageToPurchase.product) {
-          const { customerInfo } = await Purchases.purchaseStoreProduct(packageToPurchase.product);
-          
-          // Check if the subscription is active for the purchased tier
-          if (typeof customerInfo.entitlements.active[tier.toLowerCase()] !== "undefined") {
-            // Call the purchase callback from parent component
-            purchase(tier.toLowerCase());
-            // Update current tier
-          } else {
-            console.log("Subscription not active");
-          }
-        } else {
-          const { customerInfo } = await Purchases.purchasePackage(packageToPurchase);
-          
-          // Check if the subscription is active for the purchased tier
-          if (typeof customerInfo.entitlements.active[tier.toLowerCase()] !== "undefined") {
-            // Call the purchase callback from parent component
-            purchase(tier.toLowerCase());
-            // Update current tier
-          } else {
-            console.log("Subscription not active");
-          }
-        }
-      } catch (e) {
-        if (!e.userCancelled) {
-          console.log('Purchase error:', e);
-        }
-      }
-    } catch (e) {
-      alert('Error Purchasing. You were not charged.');
-      console.log('Setup error:', e);
     }
   };
 
@@ -255,46 +209,54 @@ const handleScrollToIndexFailed = (info) => {
   }, 100);
 };
 
-  if (subscriptionTier) {
-    return (
-      <View style={styles.outerContainer}>
-        <View style={[styles.container]}>
-          <View style={styles.activeContainer}>
-            <LinearGradient
-              colors={tierColors[subscriptionTier]}
-              style={styles.gradientHeader}
-            >
-              <Text style={styles.activeText}>{subscriptionTier.charAt(0).toUpperCase() + subscriptionTier.slice(1)} Active</Text>
-            </LinearGradient>
+  // if (subscriptionTier) {
+  //   return (
+  //     <View style={styles.outerContainer}>
+  //       <View style={[styles.container]}>
+  //         <View style={styles.activeContainer}>
+  //           <LinearGradient
+  //             colors={tierColors[subscriptionTier]}
+  //             style={styles.gradientHeader}
+  //           >
+  //             <Text style={styles.activeText}>{subscriptionTier.charAt(0).toUpperCase() + subscriptionTier.slice(1)} Active</Text>
+  //           </LinearGradient>
             
-            <Image 
-              source={require('../assets/premium-badge.png')} 
-              style={styles.premiumImage} 
-              resizeMode="contain"
-            />
+  //           <Image 
+  //             source={require('../assets/premium-badge.png')} 
+  //             style={styles.premiumImage} 
+  //             resizeMode="contain"
+  //           />
             
-            <View style={styles.featureList}>
-              <Text style={styles.featureTitle}>Your Benefits:</Text>
-              {tierFeatures[subscriptionTier].map((feature, index) => (
-                <View key={index} style={styles.featureItem}>
-                  <View style={[styles.bulletPoint, {backgroundColor: tierColors[subscriptionTier][0]}]} />
-                  <Text style={styles.featureText}>{feature}</Text>
-                </View>
-              ))}
-            </View>
+  //           <View style={styles.featureList}>
+  //             <Text style={styles.featureTitle}>Your Benefits:</Text>
+  //             {tierFeatures[subscriptionTier].map((feature, index) => (
+  //               <View key={index} style={styles.featureItem}>
+  //                 <View style={[styles.bulletPoint, {backgroundColor: tierColors[subscriptionTier][0]}]} />
+  //                 <Text style={styles.featureText}>{feature}</Text>
+  //               </View>
+  //             ))}
+  //           </View>
             
-            <Text style={styles.thankYouText}>
-              Thank you for your support! Enjoy all {subscriptionTier} features.
-            </Text>
-          </View>
-        </View>
-      </View>
-    );
-  }
+  //           <Text style={styles.thankYouText}>
+  //             Thank you for your support! Enjoy all {subscriptionTier} features.
+  //           </Text>
+  //         </View>
+  //       </View>
+  //     </View>
+  //   );
+  //}
 
   return (
     <View style={styles.outerContainer}>
       <View style={[styles.container]}>
+        {/* Back button */}
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={close}
+        >
+          <Text style={styles.backButtonText}>← Back</Text>
+        </TouchableOpacity>
+        
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <LinearGradient
             colors={tierColors[selectedTier]}
@@ -356,16 +318,6 @@ const handleScrollToIndexFailed = (info) => {
                   resizeMode="contain"
                 />
                 
-                {tier === selectedTier && likerCount > 0 && (
-                  <View style={[styles.likersAlert, {borderLeftColor: tierColors[tier][0]}]}>
-                    <Text style={[styles.likersAlertText, {color: tierColors[tier][0]}]}>
-                      {likerCount} {likerCount === 1 ? 'person' : 'people'} liked you!
-                    </Text>
-                    <Text style={[styles.likersAlertSubtext, {color: tierColors[tier][0]}]}>
-                      Upgrade now to see who they are
-                    </Text>
-                  </View>
-                )}
                 
                 <View style={styles.featureList}>
                   <Text style={styles.featureTitle}>
@@ -400,15 +352,16 @@ const handleScrollToIndexFailed = (info) => {
               ]}
             >
               <TouchableOpacity 
-                onPress={() => purchaseTier(selectedTier)} 
+                onPress={() => purchase(selectedTier.toLowerCase())} 
                 style={styles.subscribeButton}
+                disabled = {selectedTier === subscriptionTier}
               >
                 <LinearGradient
                   colors={tierColors[selectedTier]}
                   style={styles.gradientButton}
                 >
                   <Text style={styles.buttonText}>
-                    Subscribe to {selectedTier.charAt(0).toUpperCase() + selectedTier.slice(1)}
+                    {subscriptionTier && selectedTier === subscriptionTier ? 'You own this plan!' : `${subscriptionTier? "Switch" : "Subscribe"} to ${selectedTier.charAt(0).toUpperCase() + selectedTier.slice(1)}`}
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -628,6 +581,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
     paddingHorizontal: 20,
+  },
+  // Back button styles
+  backButton: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    zIndex: 10,
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#555',
   },
 });
 

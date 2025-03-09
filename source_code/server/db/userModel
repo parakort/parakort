@@ -1,123 +1,248 @@
 const mongoose = require("mongoose");
 const uniqueValidator = require('mongoose-unique-validator');
+const axios = require('axios');
 const { Schema } = mongoose;
 
-
+// Your existing filter schema
 const filterSchema = new Schema({
-    male: { type: Boolean, required: true, default: true },
-    female: { type: Boolean, required: true, default: true },
-    age: {
-        min: { type: Number, default: 0 },
-        max: { type: Number, default: 100 }
-    },
-    radius: { type: Number, required: true, default: 10 },
-    sports: [{
-        sportId: { type: Schema.Types.ObjectId, ref: 'Sport' }, // Reference to the sports collection
-        my_level: { type: Number, min: 0, max: 3, default: 0 },
-        match_level: [{ type: Number, enum: [1, 2, 3], default: [] }]
-    }]
+  male: { type: Boolean, required: true, default: true },
+  female: { type: Boolean, required: true, default: true },
+  age: {
+    min: { type: Number, default: 0 },
+    max: { type: Number, default: 100 }
+  },
+  radius: { type: Number, required: true, default: 10 },
+  sports: [{
+    sportId: { type: Schema.Types.ObjectId, ref: 'Sport' }, // Reference to the sports collection
+    my_level: { type: Number, min: 0, max: 3, default: 0 },
+    match_level: [{ type: Number, enum: [1, 2, 3], default: [] }]
+  }]
 });
 
-
+// Your existing User schema with push notification additions
 const UserSchema = new mongoose.Schema({
-    
-email: {
+  email: {
     type: String,
     required: [true, "Please provide an email."],
     unique: [true, "Username taken!"],
     maxlength: [100, "Email too long"],
     uniqueCaseInsensitive: true
-},
-
-password: {
+  },
+  password: {
     type: String,
     required: [true, "Please provide a password!"],
     unique: false,
-},
-
-// Dynamic fields
-location: {
+  },
+  // Dynamic fields
+  location: {
     lat: { type: Number },
     lon: { type: Number }
-},
-
-filters: {
+  },
+  filters: {
     type: filterSchema
   },
-
-
-renewal_date: {
+  renewal_date: {
     type: Number,
     default: 0
-},
-
-pending_device: {
+  },
+  pending_device: {
     type: String
-},
-
-code: {
+  },
+  code: {
     type: Number
-},
-
-code_attempts: {
+  },
+  code_attempts: {
     type: Number,
     default: 0
-},
-
-dormant: {
+  },
+  dormant: {
     // Number of days that account has not been accessed
     type: Number,
     default: 0,
-},
-
-marked_for_deletion: {
+  },
+  marked_for_deletion: {
     type: Boolean,
     default: false
-},
-
-email_confirmed: {
+  },
+  email_confirmed: {
     type: Boolean,
     default: false
-},
-
-
-tokens: {
+  },
+  tokens: {
     // Defaults to 0. Trial tokens granted once we confirm that registering device id is not in the device pool
     type: Number,
     default: 0
-},
-
-
-devices: {
+  },
+  devices: {
     type: Array
-},
-
-matches: {
+  },
+  matches: {
     type: Array,
     default: []
-},
-dislikes: {
+  },
+  dislikes: {
     type: Array,
     default: []
-},
-likers: {
+  },
+  likers: {
     type: Array,
     default: []
-},
-test: {
+  },
+  test: {
     type: Boolean,
     default: false
-},
-
-subscription_tier: {
+  },
+  subscription_tier: {
     type: String,
     enum: ['pro', 'premium', 'elite'],
+  },
+  // Add push notification fields to existing schema
+  pushTokens: [{
+    token: {
+      type: String,
+      required: true
+    },
+    device: String,
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }]
+}, { strict: false });
+
+// Add methods to the User model for push notification management
+UserSchema.methods.addPushToken = async function(token, device = 'unknown') {
+  // Check if token already exists
+  const tokenExists = this.pushTokens?.find(t => t.token === token);
+  
+  // Initialize pushTokens array if it doesn't exist
+  if (!this.pushTokens) {
+    this.pushTokens = [];
   }
+  
+  if (!tokenExists) {
+    this.pushTokens.push({ token, device });
+    await this.save();
+  }
+  
+  return this;
+};
 
-}, { strict: false })
+UserSchema.methods.removePushToken = async function(token) {
+  if (this.pushTokens && this.pushTokens.length) {
+    this.pushTokens = this.pushTokens.filter(t => t.token !== token);
+    await this.save();
+  }
+  return this;
+};
 
-UserSchema.plugin(uniqueValidator, {
-    message: 'Error, expected {PATH} to be unique.'
+// Method to send push notification to a specific user
+UserSchema.methods.sendPushNotification = async function(title, body, data = {}) {
+  if (!this.pushTokens || !this.pushTokens.length) {
+    return { success: false, message: 'No push tokens available for this user' };
+  }
+  
+  const messages = this.pushTokens.map(tokenObj => ({
+    to: tokenObj.token,
+    sound: 'default',
+    title,
+    body,
+    data
+  }));
+  
+  try {
+    // Send to Expo push notification service
+    const response = await axios.post('https://exp.host/--/api/v2/push/send', 
+      messages.length === 1 ? messages[0] : messages,
+      {
+        headers: {
+          'Accept': 'application/json',
+          'Accept-encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        }
+      }
+    );
+    
+    return { 
+      success: true, 
+      data: response.data 
+    };
+  } catch (error) {
+    console.error('Push notification error:', error.response?.data || error.message);
+    return { 
+      success: false, 
+      error: error.response?.data || error.message 
+    };
+  }
+};
+
+// Static method to send push notification to multiple users
+UserSchema.statics.sendPushNotificationToMany = async function(userIds, title, body, data = {}) {
+  const users = await this.find({ _id: { $in: userIds } });
+  
+  // Collect all tokens from all users
+  const tokens = [];
+  users.forEach(user => {
+    if (user.pushTokens && user.pushTokens.length) {
+      user.pushTokens.forEach(tokenObj => {
+        tokens.push(tokenObj.token);
+      });
+    }
   });
   
+  if (!tokens.length) {
+    return { success: false, message: 'No push tokens available for these users' };
+  }
+  
+  // Create messages
+  const messages = tokens.map(token => ({
+    to: token,
+    sound: 'default',
+    title,
+    body,
+    data
+  }));
+  
+  try {
+    // Send to Expo push notification service
+    const response = await axios.post('https://exp.host/--/api/v2/push/send', 
+      messages,
+      {
+        headers: {
+          'Accept': 'application/json',
+          'Accept-encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        }
+      }
+    );
+    
+    return { 
+      success: true, 
+      data: response.data 
+    };
+  } catch (error) {
+    console.error('Push notification error:', error.response?.data || error.message);
+    return { 
+      success: false, 
+      error: error.response?.data || error.message 
+    };
+  }
+};
+
+// Method to send notification to users based on filter criteria
+UserSchema.statics.sendPushNotificationByFilter = async function(filter, title, body, data = {}) {
+  const users = await this.find(filter);
+  
+  // Get user IDs
+  const userIds = users.map(user => user._id);
+  
+  // Use the existing method to send notifications
+  return this.sendPushNotificationToMany(userIds, title, body, data);
+};
+
+// Apply the unique validator plugin
+UserSchema.plugin(uniqueValidator, {
+  message: 'Error, expected {PATH} to be unique.'
+});
+
 module.exports = mongoose.model.Users || mongoose.model("User", UserSchema);

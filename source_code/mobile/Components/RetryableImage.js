@@ -10,6 +10,7 @@ const RetryableImage = ({ uri, style, useLoading, bro }) => {
 
     // If uri is null, we don't want to setimageuri to null - would cause infinite loop
     if (!imageUri && uri) setImageUri(uri);
+    
 
     useEffect(() => {
         if (imageUri !== uri) setImageUri(uri);
@@ -41,7 +42,6 @@ const RetryableImage = ({ uri, style, useLoading, bro }) => {
     // return (
     //     <Image source={require('../assets/loading.png')}></Image>
     // )
-
 
     return (
         <View>

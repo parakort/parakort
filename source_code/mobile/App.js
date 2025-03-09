@@ -15,6 +15,7 @@ import config from "./app.json"
 import RNFS from 'react-native-fs';
 import Toast from 'react-native-toast-message';
 import { Vibration } from 'react-native';
+import Push from './Components/Push.js';
 
 
 
@@ -80,6 +81,7 @@ export default function App() {
   const [setupScreen, setSetupScreen] = useState(true)
 
   const [subscriptionTier, setSubscriptionTier] = useState(null);
+  const [paywall, setPaywall] = useState(false)
 
 
   // State value of 'booting' - true while we wait to reach the server, false when we have connected (show splash screen while true)
@@ -134,6 +136,31 @@ export default function App() {
 
   // Help modal text: Contact message
   const [textInputValue, setTextInputValue] = useState('');
+
+
+  // NOTIFICATIONS
+
+  const [lastNotification, setLastNotification] = useState(null);
+  
+  // Function to handle when a notification is received
+  const handleNotificationReceived = (notification) => {
+    setLastNotification(notification);
+    
+    // You can implement custom logic here based on notification content
+    // For example, navigate to a specific screen or update app state
+    console.log('Received notification:', notification);
+    
+    // Example of accessing notification data:
+    const notificationData = notification.request.content.data;
+    if (notificationData.type === 'message') {
+      // Navigate to messages screen or update message count, etc.
+    }
+  };
+
+  const handleTokenReceived = (token) => {
+    console.log('Push token received:', token);
+    // You might want to store this in your app's state or context
+  };
 
   // finished setup and tutorial: Show the app content
   function finishedSetup() {
@@ -1206,7 +1233,7 @@ function logIn(token)
   .then(async (res) => {
 
     setTokens(res.data.tokens)
-    setSubscriptionTier(res.data.user.subscription_tier)
+    setSubscriptionTier(res.data.user.subscription_tier.charAt(0).toUpperCase() + res.data.user.subscription_tier.slice(1).toLowerCase())
 
     // user will be used for the immutable fields such as name, email, id.
     // if we bundle all of it into user, like bundling filters too, we can't isolate state changes.
@@ -1281,9 +1308,9 @@ const purchase = async (tier) => {
   try {
     // Define mapping between tiers and RevenueCat offerings package identifiers
     const tierPackages = {
-      'pro': 'pro',
-      'premium': 'premium',
-      'elite': 'elite'
+      'pro': 'Pro',
+      'premium': 'Premium',
+      'elite': 'Elite'
     };
     
     // Validate tier
@@ -1321,7 +1348,7 @@ const purchase = async (tier) => {
         .then((response) => {
           // Update tokens locally
           setTokens(response.data.tokens);
-          setSubscriptionTier(tier); // New state to track the subscription tier
+          setSubscriptionTier(tier.charAt(0).toUpperCase() + tier.slice(1).toLowerCase()); // New state to track the subscription tier
           console.log(`Subscribed to ${tier} tier!`);
           // UI feedback here for subscription
         })
@@ -1375,8 +1402,17 @@ if (showSplash)
     return (
       <>
           {/* Navigation is the actual Screen which gets displayed based on the tab cosen */}
-          <Navigation subscriptionTier = {subscriptionTier} Purchases = {Purchases} likerCount = {likerCount} unread = {unread} ref = {navigationRef} messages = {messages} setMessages = {setMessages} chatUser={chatUser} setChatUser={setChatUser} loadMessages = {loadMessages} connectWs = {connectWs} ws = {ws} serverUrl = {BASE_URL} resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
+          <Navigation paywall = {paywall} setPaywall = {setPaywall} subscriptionTier = {subscriptionTier} Purchases = {Purchases} likerCount = {likerCount} unread = {unread} ref = {navigationRef} messages = {messages} setMessages = {setMessages} chatUser={chatUser} setChatUser={setChatUser} loadMessages = {loadMessages} connectWs = {connectWs} ws = {ws} serverUrl = {BASE_URL} resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
           
+          {/* Notifications */}
+          {currentUser && (
+        <Push 
+          userId={user._id}
+          onNotificationReceived={handleNotificationReceived}
+          onTokenReceived={handleTokenReceived}
+        />
+      )}
+
           {/* Confetti Screen */}
           <ConfettiScreen
             trigger={triggerEffect}
