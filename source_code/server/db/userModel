@@ -3,7 +3,6 @@ const uniqueValidator = require('mongoose-unique-validator');
 const axios = require('axios');
 const { Schema } = mongoose;
 
-// Your existing filter schema
 const filterSchema = new Schema({
   male: { type: Boolean, required: true, default: true },
   female: { type: Boolean, required: true, default: true },
@@ -19,7 +18,6 @@ const filterSchema = new Schema({
   }]
 });
 
-// Your existing User schema with push notification additions
 const UserSchema = new mongoose.Schema({
   email: {
     type: String,

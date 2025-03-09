@@ -159,7 +159,62 @@ export default function App() {
 
   const handleTokenReceived = (token) => {
     console.log('Push token received:', token);
-    // You might want to store this in your app's state or context
+  };
+  
+  const handleNotificationResponse = (response) => {
+    // console.log('Notification response:', response);
+    // We need to check the notification type, if it is a chat, go to the user's chat based on data.senderId, if it is a match, go to the matches screen
+
+    // For the action type (e.g., if user tapped the notification)
+    const actionIdentifier = response.actionIdentifier;
+    
+    // Get the notification content
+    const notification = response.notification;
+    const request = notification.request;
+    const content = request.content;
+    
+    // Extract basic notification details
+    const title = content.title;         // "Peter Buonaiuto"
+    const body = content.body;           // "Hello"
+    const sound = content.sound;         // "default"
+    
+    // Extract custom data
+    const data = content.data;
+    const messageType = data.type;       // "message"
+    const senderId = data.sender;        // "66ca6375ee0503fcc92c6a33"
+    
+    // Get trigger information
+    const trigger = request.trigger;
+    const triggerType = trigger.type;    // "push"
+    if (messageType === 'message') {
+      // Navigate to messages screen
+      setChatUser((prev) => ({ ...mediaRef.current.get(senderId), uid: senderId }));
+      navigationRef.current?.navigate('Matches');
+
+      // set message as read
+      axios.post(`${BASE_URL}/readMessage`, {senderId: senderId, recipientId: user._id})
+      .then((res) => {
+        // update locally
+        setMatches((prevMatches) =>
+          prevMatches.map((item) =>
+            item.uid === senderId ? { ...item, unread: false } : item
+          )
+        );
+      });
+
+    } else if (messageType === 'new_like') {
+      // Navigate to matches screen
+      navigationRef.current?.navigate('Likes');
+    } else {
+      console.log("Unhandled type:", messageType)
+    }
+
+
+
+
+
+
+
   };
 
   // finished setup and tutorial: Show the app content
@@ -1030,7 +1085,7 @@ function logDifferences(obj1, obj2, log) {
         
         }
 
-        axios.post(`${BASE_URL}/appOpened`, {user_id: user._id})
+        // axios.post(`${BASE_URL}/appOpened`, {user_id: user._id})
       }
         
     }
@@ -1233,7 +1288,7 @@ function logIn(token)
   .then(async (res) => {
 
     setTokens(res.data.tokens)
-    setSubscriptionTier(res.data.user.subscription_tier.charAt(0).toUpperCase() + res.data.user.subscription_tier.slice(1).toLowerCase())
+    setSubscriptionTier(res.data.user.subscription_tier? res.data.user.subscription_tier.charAt(0).toUpperCase() + res.data.user.subscription_tier.slice(1).toLowerCase() : null)
 
     // user will be used for the immutable fields such as name, email, id.
     // if we bundle all of it into user, like bundling filters too, we can't isolate state changes.
@@ -1405,11 +1460,13 @@ if (showSplash)
           <Navigation paywall = {paywall} setPaywall = {setPaywall} subscriptionTier = {subscriptionTier} Purchases = {Purchases} likerCount = {likerCount} unread = {unread} ref = {navigationRef} messages = {messages} setMessages = {setMessages} chatUser={chatUser} setChatUser={setChatUser} loadMessages = {loadMessages} connectWs = {connectWs} ws = {ws} serverUrl = {BASE_URL} resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
           
           {/* Notifications */}
-          {currentUser && (
+          {user._id && (
         <Push 
           userId={user._id}
           onNotificationReceived={handleNotificationReceived}
-          onTokenReceived={handleTokenReceived}
+          // onTokenReceived={handleTokenReceived}
+          onNotificationResponse={handleNotificationResponse}
+          API_URL={BASE_URL}
         />
       )}
 

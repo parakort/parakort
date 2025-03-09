@@ -213,14 +213,14 @@ async function maintainUsers() {
 // Route to save a push token for the authenticated user
 router.post('/push-token', async (req, res) => {
   try {
-    const { token, device } = req.body;
+    const { token, device, uid } = req.body;
     
     if (!token) {
       return res.status(400).json({ message: 'Token is required' });
     }
     
     // Get the user from the auth middleware
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(uid);
     
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -280,7 +280,6 @@ async function sendNotificationToUser(userId, title, body, data = {}) {
     if (!user) {
       throw new Error('User not found');
     }
-    
     const result = await user.sendPushNotification(title, body, data);
     return {
       success: true,
@@ -374,69 +373,87 @@ router.post('/unmatchUser', async (req, res) => {
 
 // Match another user
 router.post('/matchUser', async (req, res) => {
-  // check if the destination has matched the source
-  User.findByIdAndUpdate(
-    req.body.dest, // Find the user by ID
-    { $addToSet: { likers: req.body.source } }, // Update the likers array
-    { projection: { matches: 1, _id: 0 }, new: false } // Return the document before the update
-  )
-  .then(async (user) => {
-    // we found the user we want to match with
-    // return whether or not the other user matched us as well.
-    const mutual = !!user.matches.find(match => match.uid === req.body.source)
-    
+  try {
+    // Check if the destination has matched the source
+    const destUser = await User.findByIdAndUpdate(
+      req.body.dest, // Find the user by ID
+      { $addToSet: { likers: req.body.source } }, // Update the likers array
+      { projection: { matches: 1, subscription_tier: 1, _id: 1 }, new: false } // Return the document before the update with subscription tier
+    );
 
+    if (!destUser) {
+      return res.status(404).send("Destination user not found");
+    }
 
-    // Return the status of whether we are a mutual match
-    res.send(mutual)
+    // Check if we are a mutual match
+    const mutual = !!destUser.matches.find(match => match.uid === req.body.source);
 
-    try {
-      // Build the update operation dynamically
-      const updateOperation = {
-        $push: {
-          matches: {
-            uid: req.body.dest,
-            mutual: mutual,
-            timestamp: Date.now(),
-            unread: true,
-          },
-        },
-      };
-    
-      if (mutual) {
-        // Add the $pull operation only if mutual is true
-        updateOperation.$pull = { likers: req.body.dest };
+    // Get source user details for notification
+    const sourceUser = await User.findById(req.body.source, { profile: 1});
+    if (!sourceUser) {
+      return res.status(404).send("Source user not found");
+    }
+
+    // Send notification to premium user if this is not a mutual match
+    if (!mutual && (destUser.subscription_tier === 'premium' || destUser.subscription_tier === 'elite')) {
+      // Send push notification to premium user about the new like
+      try {
+        await sendNotificationToUser(
+          destUser._id,
+          "Someone new likes you!",
+          `${sourceUser.profile.firstName + " " + sourceUser.profile.lastName} just liked your profile. Check them out!`,
+          {
+            type: 'new_like',
+            userId: req.body.source,
+          }
+        );
+      } catch (notifError) {
+        console.error("Failed to send notification:", notifError);
+        // Continue execution even if notification fails
       }
+    }
+
+    // Build the update operation dynamically
+    const updateOperation = {
+      $push: {
+        matches: {
+          uid: req.body.dest,
+          mutual: mutual,
+          timestamp: Date.now(),
+          unread: true,
+        },
+      },
+    };
     
-      await User.findByIdAndUpdate(
-        req.body.source,
-        updateOperation,
-        { new: true } // Ensures the updated document is returned
-      );
-    } catch (err) {
-      console.error(err); // Print any errors
+    if (mutual) {
+      // Add the $pull operation only if mutual is true
+      updateOperation.$pull = { likers: req.body.dest };
     }
     
+    await User.findByIdAndUpdate(
+      req.body.source,
+      updateOperation,
+      { new: true } // Ensures the updated document is returned
+    );
 
-    // If this match became mutual, update the other user's existing match object to be mutual, and perform notifications on frontend as arespult.
-    if (mutual)
-    {
-      User.updateOne(
-        { _id: req.body.dest, 'matches.uid': req.body.source },  // Query to find the document and the specific UID
-        { $set: { 'matches.$.mutual': true, 'matches.$.timestamp': Date.now(),  'matches.$.unread': true}, $pull: { likers: req.body.source }  },     // Update operation to set `mutual` to true
-
+    // If this match became mutual, update the other user's existing match object to be mutual
+    if (mutual) {
+      await User.updateOne(
+        { _id: req.body.dest, 'matches.uid': req.body.source }, // Query to find the document and the specific UID
+        { $set: { 'matches.$.mutual': true, 'matches.$.timestamp': Date.now(), 'matches.$.unread': true}, $pull: { likers: req.body.source } }, // Update operation to set `mutual` to true
       );
     }
+    
     // Let the destination user be aware of the changes
-    forceUpdate(req.body.dest)
-
-  })
-  .catch((e) => {
-    console.log("failed to match user", e)
-    res.status(500).send(e)
-  })
-})
-
+    forceUpdate(req.body.dest);
+    
+    // Return the mutual status
+    res.send(mutual);
+  } catch (error) {
+    console.log("Failed to match user", error);
+    res.status(500).send(error);
+  }
+});
 
 // Force a user to get new data, forcing them to call the below endpoint.
 function forceUpdate(uid, sender, messagePreview, senderName)
@@ -499,6 +516,17 @@ wss.on('connection', (ws) => {
       const recipientWs = users[parsedMessage.recipientId];
       if (recipientWs) {
         recipientWs.send(JSON.stringify({type: "message", message: parsedMessage.text, timestamp: parsedMessage.timestamp, sender: false}));
+      }
+
+      // Send push notification to the recipient
+      const recipient = await User.findById(parsedMessage.recipientId);
+      if (recipient) {
+        const title = parsedMessage.senderName;
+        const body = `${parsedMessage.text.substring(0, 30)}`;
+        const data = { type: 'message', sender: parsedMessage.senderId };
+        // await recipient.sendPushNotification(title, body, data);
+        // send push notification to user
+        sendNotificationToUser(parsedMessage.recipientId, title, body, data);
       }
 
       // Forward the message and store it in each user's database document
@@ -1395,6 +1423,7 @@ router.post('/newSubscriber', async(req, res) => {
         { $set: { dormant: 0 } }, // Update dormant field
         { new: true }
       ).populate('filters.sports.sportId'); // Populate sportId in the filters.sports array
+      console.log(user)
   
       if (!user) {
         return res.status(404).send({ message: "User not found!" });
@@ -1403,7 +1432,7 @@ router.post('/newSubscriber', async(req, res) => {
       const userObject = excludeFields(user.toObject());
   
       // Conditional response for premium and non-premium users
-      if (user.premium) {
+      if (user.subscription_tier) {
         res.status(200).send({ user: userObject });
       } else {
         const { likers, ...rest } = userObject;

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+import axios from 'axios'; // Import axios
 
 // Configure how notifications should be handled when app is in foreground
 Notifications.setNotificationHandler({
@@ -27,6 +29,7 @@ async function registerForPushNotificationsAsync() {
 
   if (Device.isDevice) {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    
     let finalStatus = existingStatus;
     
     if (existingStatus !== 'granted') {
@@ -49,34 +52,21 @@ async function registerForPushNotificationsAsync() {
   return token;
 }
 
-// API endpoint for your backend
-const API_URL = 'https://your-api.com'; // Replace with your actual API URL
-
-const Push = ({ userId, onTokenReceived, onNotificationReceived }) => {
+const Push = ({ userId, onTokenReceived, onNotificationReceived, onNotificationResponse, API_URL }) => {
   const [expoPushToken, setExpoPushToken] = useState('');
   const notificationListener = useRef();
   const responseListener = useRef();
 
-  // Function to save token to your backend
+  // Function to save token to your backend using axios
   const saveTokenToBackend = async (token) => {
     if (!userId || !token) return;
     
     try {
-      const response = await fetch(`${API_URL}/users/push-token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`, // Adjust for your auth method
-        },
-        body: JSON.stringify({
-          token,
-          device: Platform.OS,
-        }),
+      const response = await axios.post(`${API_URL}/push-token`, {
+        token: token,
+        device: Platform.OS,
+        uid: userId
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to save push token');
-      }
       
       console.log('Push token saved to backend successfully');
     } catch (error) {
@@ -85,7 +75,6 @@ const Push = ({ userId, onTokenReceived, onNotificationReceived }) => {
   };
 
   useEffect(() => {
-    if (!userId) return
     // Register for push notifications
     registerForPushNotificationsAsync().then(token => {
       if (token) {
@@ -109,9 +98,10 @@ const Push = ({ userId, onTokenReceived, onNotificationReceived }) => {
     // Listen for user interactions with notifications
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
       // Handle notification response (when user taps on notification)
-      console.log('Notification response:', response);
-      
-      // You could add another callback prop here if needed
+    //   console.log('Notification response:', response);
+      if (onNotificationResponse && typeof onNotificationResponse === 'function') {
+        onNotificationResponse(response);
+      }
     });
 
     return () => {
@@ -119,7 +109,7 @@ const Push = ({ userId, onTokenReceived, onNotificationReceived }) => {
       Notifications.removeNotificationSubscription(notificationListener.current);
       Notifications.removeNotificationSubscription(responseListener.current);
     };
-  }, [onTokenReceived, onNotificationReceived, userId]);
+  }, [onTokenReceived, onNotificationReceived, onNotificationResponse]);
 
   // Save token to backend when we have both a token and userId
   useEffect(() => {

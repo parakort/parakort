@@ -30,6 +30,7 @@ const Likes = (props) => {
 
   function handleSwipeRight(liker) {
     props.onSwipeRight(liker);
+    navigate.navigate('Matches');
   }
 
 
