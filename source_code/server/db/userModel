@@ -76,7 +76,7 @@ const UserSchema = new mongoose.Schema({
   },
   matches: {
     type: Array,
-    default: []
+    default: [],
   },
   dislikes: {
     type: Array,

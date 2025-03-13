@@ -1,9 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  Animated,
-  PanResponder,
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
@@ -13,8 +11,6 @@ import SkillLevels from './SkillLevels';
 import RetryableImage from './RetryableImage';
 
 const Match = (props) => {
-  const triggerThreshold = -150; // Distance to trigger swipe action
-  const translateX = useRef(new Animated.Value(0)).current;
   const [mediaIndex, setMediaIndex] = useState(0);
 
   const styles = StyleSheet.create({
@@ -68,47 +64,11 @@ const Match = (props) => {
     },
   });
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) =>
-        Math.abs(gestureState.dx) > 10, // Start responding to horizontal movement
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dx < 0) {
-          // Allow only left swiping
-          translateX.setValue(gestureState.dx);
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx < triggerThreshold) {
-          // Trigger action when swiped past the threshold
-          props.onSwipeLeft(props.match);
-          Animated.timing(translateX, {
-            toValue: -300, // Move it completely out of view
-            duration: 200,
-            useNativeDriver: true,
-          }).start();
-        } else {
-          // Snap back to the original position
-          Animated.spring(translateX, {
-            toValue: 0,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-    })
-  ).current;
-
   if (props.media)
 
   return (
-    <Animated.View
-      style={{ transform: [{ translateX }] }}
-      {...panResponder.panHandlers}
-    >
-      <TouchableOpacity onPress={props.onPress} activeOpacity={0.7}>
-
+    <TouchableOpacity onPress={props.onPress} activeOpacity={0.7}>
       <View style={styles.container}>
-
         <View style={styles.imageContainer}>
           <RetryableImage
             uri={props.media? props.media.media[mediaIndex].uri : ""}
@@ -153,9 +113,7 @@ const Match = (props) => {
         </View>
         <SocialButtons socials={props.media.profile.socials} />
       </View>
-      </TouchableOpacity>
-
-    </Animated.View>
+    </TouchableOpacity>
   );
   
 };

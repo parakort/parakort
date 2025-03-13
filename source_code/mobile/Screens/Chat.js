@@ -9,6 +9,7 @@ import {
   Platform,
   Dimensions,
   StyleSheet,
+  Modal,
 } from 'react-native';
 import RetryableImage from '../Components/RetryableImage';
 import config from "../app.json";
@@ -16,6 +17,7 @@ import config from "../app.json";
 const Chat = (props) => {
   const [messageInput, setMessageInput] = useState('');
   const [debouncedMessageInput, setDebouncedMessageInput] = useState('');
+  const [menuVisible, setMenuVisible] = useState(false);
   const flatListRef = useRef(null);
 
   const messages = useMemo(() => props.messages, [props.messages]);
@@ -83,8 +85,19 @@ const Chat = (props) => {
     setMessageInput('');
   };
 
+  const handleUnmatch = () => {
+    props.unmatch(props.user.uid);
+    setMenuVisible(false);
+    props.setUser(null);
+  };
+
+  const handleBlock = () => {
+    props.block(props.user.uid);
+    setMenuVisible(false);
+    props.setUser(null);
+  };
+
   const renderMessage = useCallback(({ item }) => (
-    
     <View
       style={[
         styles.messageContainer,
@@ -135,6 +148,13 @@ const Chat = (props) => {
             {props.user.profile.firstName} {props.user.profile.lastName}
           </Text>
         </View>
+
+        <TouchableOpacity 
+          onPress={() => setMenuVisible(true)} 
+          style={styles.menuButtonContainer}
+        >
+          <Text style={styles.menuButton}>{"..."}</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={{ flex: 1, paddingBottom: 10 }}>
@@ -149,7 +169,6 @@ const Chat = (props) => {
         // onEndReachedThreshold={0.5} // Trigger loading when 50% near the top
       />
       </View>
-
 
       <View style={styles.inputContainer}>
         <TextInput
@@ -167,6 +186,38 @@ const Chat = (props) => {
           <Text style={styles.sendButtonText}>Send</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Menu Modal */}
+      <Modal
+        visible={menuVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setMenuVisible(false)}
+        >
+          <View style={styles.menuContainer}>
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              onPress={handleUnmatch}
+            >
+              <Text style={styles.menuItemTextDanger}>Unmatch</Text>
+            </TouchableOpacity>
+            
+            {/* <View style={styles.menuSeparator} />
+            
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              onPress={handleBlock}
+            >
+              <Text style={styles.menuItemTextDanger}>Block</Text>
+            </TouchableOpacity> */}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -188,6 +239,15 @@ const styles = StyleSheet.create({
   },
   backButton: {
     fontSize: 16,
+  },
+  menuButtonContainer: {
+    position: "absolute",
+    right: 15,
+    top: 15,
+  },
+  menuButton: {
+    fontSize: 24,
+    fontWeight: "bold",
   },
   profileContainer: {
     alignItems: "center",
@@ -252,7 +312,37 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
   },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuContainer: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 5,
+    width: '80%',
+    maxWidth: 300,
+  },
+  menuItem: {
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+  },
+  menuItemText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  menuItemTextDanger: {
+    fontSize: 16,
+    textAlign: 'center',
+    color: 'red',
+  },
+  menuSeparator: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+  },
 });
-
 
 export default Chat;

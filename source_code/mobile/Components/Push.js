@@ -3,7 +3,7 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import axios from 'axios'; // Import axios
+import axios from 'axios';
 
 // Configure how notifications should be handled when app is in foreground
 Notifications.setNotificationHandler({
@@ -17,6 +17,7 @@ Notifications.setNotificationHandler({
 // Function to register for push notifications
 async function registerForPushNotificationsAsync() {
   let token;
+  let permissionStatus = 'denied';
   
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
@@ -37,9 +38,11 @@ async function registerForPushNotificationsAsync() {
       finalStatus = status;
     }
     
+    permissionStatus = finalStatus;
+    
     if (finalStatus !== 'granted') {
       console.warn('Failed to get push token for push notification!');
-      return;
+      return { token: null, permissionStatus };
     }
     
     token = (await Notifications.getExpoPushTokenAsync({
@@ -49,13 +52,41 @@ async function registerForPushNotificationsAsync() {
     console.warn('Must use physical device for Push Notifications');
   }
 
-  return token;
+  return { token, permissionStatus };
 }
 
-const Push = ({ userId, onTokenReceived, onNotificationReceived, onNotificationResponse, API_URL }) => {
+const Push = ({ 
+  userId, 
+  onTokenReceived, 
+  onNotificationReceived, 
+  onNotificationResponse, 
+  API_URL,
+  onNotificationStatusChange // New prop to report status changes
+}) => {
   const [expoPushToken, setExpoPushToken] = useState('');
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const notificationListener = useRef();
   const responseListener = useRef();
+
+  // Function to check if notifications are currently enabled
+  const checkNotificationStatus = async () => {
+    if (!Device.isDevice) {
+      setNotificationsEnabled(false);
+      return false;
+    }
+    
+    const { status } = await Notifications.getPermissionsAsync();
+    const isEnabled = status === 'granted';
+    
+    setNotificationsEnabled(isEnabled);
+    
+    // Report status change to parent component
+    if (onNotificationStatusChange && typeof onNotificationStatusChange === 'function') {
+      onNotificationStatusChange(isEnabled);
+    }
+    
+    return isEnabled;
+  };
 
   // Function to save token to your backend using axios
   const saveTokenToBackend = async (token) => {
@@ -75,8 +106,11 @@ const Push = ({ userId, onTokenReceived, onNotificationReceived, onNotificationR
   };
 
   useEffect(() => {
+    // First check current status
+    checkNotificationStatus();
+    
     // Register for push notifications
-    registerForPushNotificationsAsync().then(token => {
+    registerForPushNotificationsAsync().then(({ token, permissionStatus }) => {
       if (token) {
         setExpoPushToken(token);
         
@@ -84,6 +118,15 @@ const Push = ({ userId, onTokenReceived, onNotificationReceived, onNotificationR
         if (onTokenReceived && typeof onTokenReceived === 'function') {
           onTokenReceived(token);
         }
+      }
+      
+      // Update notifications status
+      const isEnabled = permissionStatus === 'granted';
+      setNotificationsEnabled(isEnabled);
+      
+      // Report status to parent
+      if (onNotificationStatusChange && typeof onNotificationStatusChange === 'function') {
+        onNotificationStatusChange(isEnabled);
       }
     });
 
@@ -97,19 +140,23 @@ const Push = ({ userId, onTokenReceived, onNotificationReceived, onNotificationR
 
     // Listen for user interactions with notifications
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      // Handle notification response (when user taps on notification)
-    //   console.log('Notification response:', response);
       if (onNotificationResponse && typeof onNotificationResponse === 'function') {
         onNotificationResponse(response);
       }
+    });
+    
+    // Setup a listener for changes in notification permissions
+    const subscription = Notifications.addPushTokenListener(() => {
+      checkNotificationStatus();
     });
 
     return () => {
       // Clean up listeners when component unmounts
       Notifications.removeNotificationSubscription(notificationListener.current);
       Notifications.removeNotificationSubscription(responseListener.current);
+      subscription.remove();
     };
-  }, [onTokenReceived, onNotificationReceived, onNotificationResponse]);
+  }, [onTokenReceived, onNotificationReceived, onNotificationResponse, onNotificationStatusChange]);
 
   // Save token to backend when we have both a token and userId
   useEffect(() => {
@@ -117,6 +164,23 @@ const Push = ({ userId, onTokenReceived, onNotificationReceived, onNotificationR
       saveTokenToBackend(expoPushToken);
     }
   }, [expoPushToken, userId]);
+
+  // Expose a method to request notifications permission again
+  const requestPermissions = async () => {
+    if (!Device.isDevice) return false;
+    
+    const { status } = await Notifications.requestPermissionsAsync();
+    const isEnabled = status === 'granted';
+    
+    setNotificationsEnabled(isEnabled);
+    
+    // Report status change to parent component
+    if (onNotificationStatusChange && typeof onNotificationStatusChange === 'function') {
+      onNotificationStatusChange(isEnabled);
+    }
+    
+    return isEnabled;
+  };
 
   // This component has no UI - it just sets up the notification system
   return null;

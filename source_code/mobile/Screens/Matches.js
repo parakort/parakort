@@ -10,7 +10,7 @@ const Matches = (props) => {
 
   // Display chat if we are chatting
   if (props.user) {
-    return <Chat senderName = {props.media.get(props.myuid).profile.firstName + " " + props.media.get(props.myuid).profile.lastName} messages = {props.messages} setMessages = {props.setMessages} loadMessages={props.loadMessages} connectWs={props.connectWs} ws={props.ws} myuid={props.myuid} serverUrl={props.serverUrl} user={props.user} setUser={props.setUser} />;
+    return <Chat unmatch = {props.unmatch} senderName = {props.media.get(props.myuid).profile.firstName + " " + props.media.get(props.myuid).profile.lastName} messages = {props.messages} setMessages = {props.setMessages} loadMessages={props.loadMessages} connectWs={props.connectWs} ws={props.ws} myuid={props.myuid} serverUrl={props.serverUrl} user={props.user} setUser={props.setUser} />;
   }
 
   if (props?.matches) {
@@ -27,11 +27,11 @@ const Matches = (props) => {
         <FlatList
           data={sortedMatches}
           keyExtractor={(item, index) => index.toString()}
+          contentContainerStyle={{ gap: 5 }} 
           renderItem={({ item }) => (
             <Match
               match={item.uid} // Only send the ID of the user
               media={props?.media.get(item.uid)}
-              onSwipeLeft={props.onSwipeLeft}
               onPress={() => props.setUser({ ...props?.media.get(item.uid), uid: item.uid })}
               myid={props.myuid}
               unread = {item.unread}

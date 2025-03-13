@@ -108,7 +108,7 @@ const Navigation = React.forwardRef((props, ref) => {
               ws={props.ws}
               serverUrl={props.serverUrl}
               myuid={props.user._id}
-              onSwipeLeft={props.unmatch}
+              unmatch={props.unmatch}
               matches={props.matches}
               media={props.media}
             />

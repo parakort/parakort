@@ -54,6 +54,7 @@ export default function App() {
 
   const [messages, setMessages] = useState([])
   const [unread, setUnread] = useState(false)
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   
 
@@ -160,6 +161,12 @@ export default function App() {
   const handleTokenReceived = (token) => {
     console.log('Push token received:', token);
   };
+
+  // Handle notification status change
+  const handleNotificationStatusChange = (isEnabled) => {
+    setNotificationsEnabled(isEnabled);
+    
+  };
   
   const handleNotificationResponse = (response) => {
     // console.log('Notification response:', response);
@@ -249,6 +256,7 @@ export default function App() {
       if (matches.find((item) => ( item.mutual && item.uid == chatUser.uid)).unread)
       {
 
+
         axios.post(`${BASE_URL}/readMessage`, {senderId: chatUser.uid, recipientId: user._id})
         .then((res) => {
 
@@ -263,7 +271,7 @@ export default function App() {
         })
       }
     }
-  }, [ matches])
+  }, [ matches, chatUser])
 
 
   // When matches update, check if there is an unread message
@@ -290,7 +298,7 @@ export default function App() {
         if (receivedMessage.type === 'update') {
           fetchData()
 
-          if (receivedMessage.sender && receivedMessage.sender != chatUserRef.current)
+          if (!notificationsEnabled && receivedMessage.sender && receivedMessage.sender != chatUserRef.current)
           { 
             // Long buzz since we're not in the chat
             Vibration.vibrate(400);
@@ -317,7 +325,8 @@ export default function App() {
         if (chatUserRef.current && receivedMessage.type === 'message') {
           setMessages((prev) => [...prev, JSON.parse(event.data)]);
           // Short buzz since we're in the chat already
-          Vibration.vibrate(100);
+          if (!notificationsEnabled)
+            Vibration.vibrate(100);
         }
       };
 
@@ -409,19 +418,25 @@ export default function App() {
             // Download their media (it should already be, since we swiped on them, unless we say if liker.mutual in getMedia())
             if (!media.get(liker)) await downloadMediaFiles(liker)
             // Two buzzes for a new liker
-            Vibration.vibrate([100, 100, 100, 100]);
 
-            Toast.show({
-              type: 'error',
-              text1: 'New liker!',
-              text2: `${media.get(liker).profile.firstName + " " + media.get(liker).profile.lastName} liked you!`,
-              onPress: () => {
+            if (!notificationsEnabled)
+            {
+
+              Vibration.vibrate([100, 100, 100, 100]);
+
+              Toast.show({
+                type: 'success',
+                text1: 'New liker!',
+                text2: `${media.get(liker).profile.firstName + " " + media.get(liker).profile.lastName} liked you!`,
+                onPress: () => {
+              
+                  navigationRef.current?.navigate('Likes');
+
+                  Toast.hide()
+                }
+              });
+            }
             
-                navigationRef.current?.navigate('Likes');
-
-                Toast.hide()
-              }
-            });
 
             
           })
@@ -968,12 +983,12 @@ function logDifferences(obj1, obj2, log) {
     //console.log(suggestions)
 
     axios.post(`${BASE_URL}/suggestUser`, {uid: user._id, filters: filters, location: location, dislikes: dislikes, suggestions: suggestions, matches: matches.map((obj) => {return obj.uid})})
-    .then((res) => {
+    .then(async (res) => {
       
       console.log("Suggested", res.data)
 
       // Start a media download for the user if we don't have their media from recently
-      if (!media.has(res.data)) downloadMediaFiles(res.data)
+      if (!media.has(res.data)) await downloadMediaFiles(res.data)
 
       // Add the user to the suggestion array (side effect will generate more users if needed)
       setSuggestions((prevSuggestions) => {
@@ -1466,6 +1481,7 @@ if (showSplash)
           onNotificationReceived={handleNotificationReceived}
           // onTokenReceived={handleTokenReceived}
           onNotificationResponse={handleNotificationResponse}
+          onNotificationStatusChange={handleNotificationStatusChange}
           API_URL={BASE_URL}
         />
       )}

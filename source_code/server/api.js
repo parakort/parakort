@@ -1423,7 +1423,6 @@ router.post('/newSubscriber', async(req, res) => {
         { $set: { dormant: 0 } }, // Update dormant field
         { new: true }
       ).populate('filters.sports.sportId'); // Populate sportId in the filters.sports array
-      console.log(user)
   
       if (!user) {
         return res.status(404).send({ message: "User not found!" });

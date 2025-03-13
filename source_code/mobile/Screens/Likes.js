@@ -4,6 +4,15 @@ import Liker from '../Components/Liker.js';
 import styless from '../styles.js';
 import { useNavigation } from '@react-navigation/native';
 
+// App color scheme
+const theme = {
+  red: "#F9063C",
+  blue: "#849bff",
+  creme: "#FFFFF1",
+  grey: "#e0e0e0",
+  gray: "#6f6f6f",
+  black: "#2f2e2e"
+};
 
 const Likes = (props) => {
   const matchUids = useMemo(() =>
@@ -118,12 +127,12 @@ const styles = StyleSheet.create({
   },
   fullScreen: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.creme,
   },
   headerText: {
     fontSize: 28,
     fontWeight: "300",
-    color: '#333',
+    color: theme.black,
     paddingBottom: 16,
     paddingHorizontal: 8,
   },
@@ -132,9 +141,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
-    backgroundColor: '#fff',
+    backgroundColor: theme.creme,
     borderRadius: 16,
-    shadowColor: '#000',
+    shadowColor: theme.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -144,39 +153,39 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: '500',
-    color: '#424242',
+    color: theme.black,
     textAlign: 'center',
   },
   emptySubtext: {
     fontSize: 16,
-    color: '#757575',
+    color: theme.gray,
     marginTop: 8,
     textAlign: 'center',
   },
   // New styles for the enhanced paywall
   paywallContainer: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: theme.creme,
   },
   blurOverlay: {
     height: 200,
-    backgroundColor: 'rgba(103, 58, 183, 0.1)',
+    backgroundColor: `${theme.blue}20`, // Using blue with 20% opacity
     justifyContent: 'center',
     alignItems: 'center',
   },
   likesCountText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#673AB7',
+    color: theme.blue,
   },
   ctaContainer: {
     padding: 24,
-    backgroundColor: '#fff',
+    backgroundColor: theme.creme,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     marginTop: -20,
     flex: 1,
-    shadowColor: '#000',
+    shadowColor: theme.black,
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
@@ -185,20 +194,20 @@ const styles = StyleSheet.create({
   ctaHeading: {
     fontSize: 26,
     fontWeight: 'bold',
-    color: '#333',
+    color: theme.black,
     marginBottom: 12,
     textAlign: 'center',
   },
   ctaSubheading: {
     fontSize: 16,
-    color: '#666',
+    color: theme.gray,
     marginBottom: 24,
     textAlign: 'center',
     lineHeight: 22,
   },
   benefitsContainer: {
     marginVertical: 20,
-    backgroundColor: '#f9f5ff',
+    backgroundColor: `${theme.blue}10`, // Using blue with 10% opacity
     padding: 16,
     borderRadius: 12,
   },
@@ -208,35 +217,35 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   benefitIcon: {
-    color: '#673AB7',
+    color: theme.blue,
     fontSize: 18,
     fontWeight: 'bold',
     marginRight: 10,
   },
   benefitText: {
     fontSize: 16,
-    color: '#444',
+    color: theme.black,
   },
   upgradeButton: {
-    backgroundColor: '#673AB7',
+    backgroundColor: theme.blue,
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: 'center',
     marginTop: 20,
-    shadowColor: '#673AB7',
+    shadowColor: theme.blue,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 6,
   },
   upgradeButtonText: {
-    color: 'white',
+    color: theme.creme,
     fontSize: 18,
     fontWeight: 'bold',
   },
   guaranteeText: {
     textAlign: 'center',
-    color: '#666',
+    color: theme.gray,
     marginTop: 16,
     fontSize: 14,
   }
