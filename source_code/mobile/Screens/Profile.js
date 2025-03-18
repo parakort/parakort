@@ -183,6 +183,8 @@ useEffect(() => {
           purchase={props.purchase}
           subscriptionTier = {props.subscriptionTier}
           close = {() => props.setPaywall(false)}
+          selectedTier = {props.selectedTier}
+          setSelectedTier = {props.setSelectedTier}
         />
       )
     }
@@ -252,7 +254,9 @@ useEffect(() => {
               }}
               resizeMode="cover"
             />
-            <Text style = {{fontSize: 20, color: config.app.theme.creme}}>{props.profile.firstName}</Text>
+            <Text style = {{fontSize: 20, color: config.app.theme.creme}}>{props.profile.firstName} {props.subscriptionTier? `(${props.subscriptionTier})` : ""}</Text>
+            <Text>{props.tokens} tokens</Text>
+
           </View>
           
           {/* 3 page tabs (navbar): Profile, Filters, Settings */}
@@ -328,7 +332,7 @@ useEffect(() => {
                       <Text style={styles.starIcon}>★</Text>
                     </View>
                     <View style={styles.premiumTextContainer}>
-                      <Text style={styles.premiumButtonText}>View Plan Upgrades</Text>
+                      <Text style={styles.premiumButtonText}>View Plans</Text>
                       <Text style={styles.premiumButtonSubtext}>Get unlimited matches & more!</Text>
                     </View>
                     <View style={styles.arrowContainer}>

@@ -17,10 +17,9 @@ import config from "../app.json";
 
 const { width } = Dimensions.get('window');
 
-const Subscribe = ({ Purchases, purchase, subscriptionTier, close }) => {
+const Subscribe = ({ Purchases, purchase, subscriptionTier, close, selectedTier, setSelectedTier }) => {
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTier, setSelectedTier] = useState('Premium'); // Default selected tier
   const [borderAnimation] = useState(new Animated.Value(0));
   const [scaleAnimation] = useState(new Animated.Value(1));
   const translateX = useRef(new Animated.Value(0)).current;
@@ -41,21 +40,36 @@ const Subscribe = ({ Purchases, purchase, subscriptionTier, close }) => {
   // Tier features
   const tierFeatures = {
     Pro: [
-      "75 Swipes per day",
+      "See who likes your profile",
+      "50 Swipes per day",
       "No ads",
     ],
     Premium: [
+      "Modify your location (travel)",
       "See who likes your profile",
-      "100 swipes per day",
+      "75 swipes per day",
       "No ads"
     ],
     Elite: [
-      "See who likes your profile",
-      "Unlimited matches per day",
       "AI Court recommendations",
+      "Unlimited swipes per day",
+      "Modify your location (travel)",
+      "See who likes your profile",
       "No ads"
     ]
   };
+
+  // Add this effect to scroll when selectedTier changes
+useEffect(() => {
+  if (flatListRef.current) {
+    const index = tiers.indexOf(selectedTier);
+    flatListRef.current.scrollToIndex({ 
+      index, 
+      animated: true,
+      viewPosition: 0.5 
+    });
+  }
+}, [selectedTier]);
 
   // Check subscription status function
   const checkSubscriptionStatus = async () => {
@@ -206,19 +220,21 @@ const Subscribe = ({ Purchases, purchase, subscriptionTier, close }) => {
       const { translationX } = event.nativeEvent;
       
       // Determine swipe direction
-      if (translationX > 70 && selectedIndex > 0) {
+      if (translationX > 20 && selectedIndex > 0) {
         // Swipe right - previous plan
         handleTierSelect(tiers[selectedIndex - 1]);
-      } else if (translationX < -70 && selectedIndex < tiers.length - 1) {
+      } else if (translationX < -20 && selectedIndex < tiers.length - 1) {
         // Swipe left - next plan
         handleTierSelect(tiers[selectedIndex + 1]);
       }
       
       // Reset translation
-      Animated.spring(translateX, {
-        toValue: 0,
-        useNativeDriver: true
-      }).start();
+    Animated.spring(translateX, {
+      toValue: 0,
+      friction: 5,
+      tension: 40,
+      useNativeDriver: true
+    }).start();
     }
   };
 
@@ -273,10 +289,11 @@ const Subscribe = ({ Purchases, purchase, subscriptionTier, close }) => {
                 horizontal
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
-                scrollEnabled={false}
+                scrollEnabled={false} // Keep this false to prevent manual scrolling
                 data={tiers}
                 keyExtractor={(item) => item}
-                initialScrollIndex={tiers.indexOf('Premium')}
+                initialScrollIndex={tiers.indexOf(selectedTier)} // Use selected tier instead of hardcoded 'Premium'
+                contentContainerStyle={{ paddingHorizontal: 0 }} // Ensure no padding
                 getItemLayout={(data, index) => ({
                   length: width * 0.9,
                   offset: (width * 0.9) * index,

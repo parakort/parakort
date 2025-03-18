@@ -8,6 +8,7 @@ import SkillLevels from '../Components/SkillLevels';
 import NoUsers from '../Components/NoUsers';
 import Loading from '../Components/Loading'
 import RetryableImage from '../Components/RetryableImage';
+import NoTokens from '../Components/NoTokens';
 
 
 
@@ -244,9 +245,21 @@ const SwipeableCard = (props) => {
   else if (!props.currentSuggestion)
   {
     if (props.haltSuggestLoop)
-    return (
-      <NoUsers resumeSuggestLoop = {props.resumeSuggestLoop}></NoUsers>
-    )
+    {
+      if (props.tokens > 0)
+      {
+        return (
+          <NoUsers resumeSuggestLoop = {props.resumeSuggestLoop}></NoUsers>
+        )
+      }
+      else
+      {
+        return (
+          <NoTokens showPaywall = {props.showPaywall}></NoTokens>
+        )
+      }
+    }
+    
 
     return <Loading></Loading>
     

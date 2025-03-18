@@ -142,14 +142,13 @@ export default function App() {
   // NOTIFICATIONS
 
   const [lastNotification, setLastNotification] = useState(null);
+  const [selectedTier, setSelectedTier] = useState("Premium")
   
   // Function to handle when a notification is received
   const handleNotificationReceived = (notification) => {
     setLastNotification(notification);
     
-    // You can implement custom logic here based on notification content
-    // For example, navigate to a specific screen or update app state
-    console.log('Received notification:', notification);
+    // console.log('Received notification:', notification);
     
     // Example of accessing notification data:
     const notificationData = notification.request.content.data;
@@ -689,6 +688,7 @@ const updateProfile = (key, newValue) => {
   
     try {
       // Now redownload all files
+      
       const res = await axios.post(`${BASE_URL}/downloadMedia`, { uid });
       
       let localMedia = res.data.media;
@@ -710,6 +710,7 @@ const updateProfile = (key, newValue) => {
 
       // Media object holds the user's profile and media
       let userMedia = {profile: userProfile, media: localMedia, sports: sports}
+
       
       // we have the media for this user. Store it in the media Map, which will store in async storage also
       setMedia((prevMedia) => {
@@ -725,6 +726,52 @@ const updateProfile = (key, newValue) => {
     } catch (error) {
       console.error('Error downloading media files:', error);
       return null; // Handle errors or return a meaningful value
+    }
+  };
+
+  const updateUserProfileTier = async (uid, newTierValue) => {
+    try {
+      // First check if the user's data is already in memory
+      let userMedia = null;
+      if (media.has(uid)) {
+        userMedia = media.get(uid);
+        
+        // Update the tier value
+        userMedia.profile.tier = newTierValue;
+        
+        // Save the updated data back to the media Map
+        setMedia((prevMedia) => {
+          const updatedMap = new Map(prevMedia);
+          updatedMap.set(uid, userMedia);
+          return updatedMap;
+        });
+        
+        
+        return userMedia;
+      } else {
+        // If we don't have the user data in memory, download it first
+        userMedia = await downloadMediaFiles(uid);
+        
+        if (userMedia) {
+          // Update the tier value
+          userMedia.profile.tier = newTierValue;
+          
+          // Save the updated data to the media Map
+          setMedia((prevMedia) => {
+            const updatedMap = new Map(prevMedia);
+            updatedMap.set(uid, userMedia);
+            return updatedMap;
+          });
+          
+          
+          return userMedia;
+        }
+      }
+      
+      return null; // Return null if we couldn't get the user data
+    } catch (error) {
+      console.error('Error updating user profile tier:', error);
+      return null;
     }
   };
   
@@ -879,6 +926,13 @@ function logDifferences(obj1, obj2, log) {
 
     if (suggestions)
     {
+      // If the first suggestion media is invalid (null) we need to refresh it
+      if (media.size > 0 && !media.get(suggestions[0]))
+      {
+        deleteMedia(suggestions[0])
+        suggestUser()
+        return
+      }
       AsyncStorage.setItem('suggestions', JSON.stringify(suggestions))
 
       // Do we need to generate more? Recurse if so.
@@ -895,6 +949,19 @@ function logDifferences(obj1, obj2, log) {
     
 
   }, [suggestions])
+
+  useEffect(() => {
+    if (!currentSuggestion && media.size > 0  && suggestions)
+      // If the first suggestion media is invalid (null) we need to refresh it
+      if (!media.get(suggestions[0]))
+        {
+          deleteMedia(suggestions[0])
+          suggestUser()
+          return
+        }
+
+
+  }, [currentSuggestion, media, suggestions])
 
   useEffect(() => {
     async function getMedia()
@@ -958,9 +1025,18 @@ function logDifferences(obj1, obj2, log) {
   // will grab an ID to suggest, add it to the array, and download their media
   // swiped: Should we remove the first user (yes if we swiped)
   function suggestUser(swiped) {
+
     if (!location)
     {
       // Location didn't load yet, quit. This function will be called again
+      return
+    }
+
+    // No tokens - halt
+    if (tokens <= 0)
+    {
+      setHaltSuggestLoop(true)
+      setCurrentSuggestion(null)
       return
     }
 
@@ -982,10 +1058,18 @@ function logDifferences(obj1, obj2, log) {
     // (TODO) also send an array of history (users we should exclude)
     //console.log(suggestions)
 
-    axios.post(`${BASE_URL}/suggestUser`, {uid: user._id, filters: filters, location: location, dislikes: dislikes, suggestions: suggestions, matches: matches.map((obj) => {return obj.uid})})
+    // Decrease tokens by 1
+    if (swiped)
+      setTokens(tokens - 1)
+
+    axios.post(`${BASE_URL}/suggestUser`, {swiped: swiped, uid: user._id, filters: filters, location: location, dislikes: dislikes, suggestions: suggestions, matches: matches.map((obj) => {return obj.uid})})
     .then(async (res) => {
       
       console.log("Suggested", res.data)
+      
+
+      
+
 
       // Start a media download for the user if we don't have their media from recently
       if (!media.has(res.data)) await downloadMediaFiles(res.data)
@@ -1003,12 +1087,13 @@ function logDifferences(obj1, obj2, log) {
 
     })
     .catch((e) => {
-      if (e.response.status == 404)
+      if (e.response.status == 404 || e.response.status == 403)
       {
         //console.log("No suitable users")
 
         // Stop trying and display no more users
         setHaltSuggestLoop(true)
+
         
 
       }
@@ -1030,7 +1115,7 @@ function logDifferences(obj1, obj2, log) {
   function deleteMedia(uid) { 
 
     // Abort if this user is in our suggestions list
-    if (suggestions.includes(uid)) return
+    //if (suggestions.includes(uid)) return
 
     // Shallow copy of the map
     const updatedMap = new Map(media);
@@ -1049,6 +1134,7 @@ function logDifferences(obj1, obj2, log) {
 
     // Save the new media with state and to local storage
     setMedia(updatedMap);
+    console.log(updatedMap)
   }
 
 
@@ -1255,6 +1341,7 @@ function unmatch(uid)
 // We swiped on a user.
 function swiped(right)
 {
+  
 
   // Make sure we haven't already matched
   // This isn't necessary, because, the match algorithm will not include current matches.
@@ -1283,6 +1370,11 @@ function swiped(right)
 
 }
 
+// If we recieved tokens, and previously had 0, resume the suggest loop.
+useEffect(() => {
+  if (tokens > 0 && haltSuggestLoop) resumeSuggestLoop(false)
+}, [tokens])
+
 // middleware Login from login screen: Must set token because it definitely is not set
 function loggedIn(token, new_user)
 {
@@ -1302,7 +1394,9 @@ function logIn(token)
   axios.post(`${BASE_URL}/user`, {user_id: token})
   .then(async (res) => {
 
-    setTokens(res.data.tokens)
+
+
+    setTokens(res.data.user.tokens)
     setSubscriptionTier(res.data.user.subscription_tier? res.data.user.subscription_tier.charAt(0).toUpperCase() + res.data.user.subscription_tier.slice(1).toLowerCase() : null)
 
     // user will be used for the immutable fields such as name, email, id.
@@ -1407,6 +1501,7 @@ const purchase = async (tier) => {
     try {
       // Make the purchase
       const { customerInfo, productIdentifier } = await Purchases.purchasePackage(packageToPurchase);
+      // updateUserProfileTier(user._id, "Elite")
       
       // Check if the subscription is active for the purchased tier
       if (typeof customerInfo.entitlements.active[tier] !== "undefined") {
@@ -1418,8 +1513,12 @@ const purchase = async (tier) => {
         .then((response) => {
           // Update tokens locally
           setTokens(response.data.tokens);
+          
           setSubscriptionTier(tier.charAt(0).toUpperCase() + tier.slice(1).toLowerCase()); // New state to track the subscription tier
           console.log(`Subscribed to ${tier} tier!`);
+          updateUserProfileTier(user._id, tier.charAt(0).toUpperCase() + tier.slice(1).toLowerCase()) 
+          // downloadMediaFiles(user._id)
+          
           // UI feedback here for subscription
         })
         .catch((e) => {
@@ -1441,6 +1540,14 @@ const purchase = async (tier) => {
     console.log('Setup error:', e);
   }
 };
+
+// Show paywall
+function showPaywall(tier)
+{
+  navigationRef.current?.navigate('Profile');
+  setPaywall(true)
+  if (tier) setSelectedTier(tier)
+}
 
 
 
@@ -1472,7 +1579,7 @@ if (showSplash)
     return (
       <>
           {/* Navigation is the actual Screen which gets displayed based on the tab cosen */}
-          <Navigation paywall = {paywall} setPaywall = {setPaywall} subscriptionTier = {subscriptionTier} Purchases = {Purchases} likerCount = {likerCount} unread = {unread} ref = {navigationRef} messages = {messages} setMessages = {setMessages} chatUser={chatUser} setChatUser={setChatUser} loadMessages = {loadMessages} connectWs = {connectWs} ws = {ws} serverUrl = {BASE_URL} resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
+          <Navigation setSelectedTier = {setSelectedTier} selectedTier = {selectedTier} showPaywall = {showPaywall} paywall = {paywall} setPaywall = {setPaywall} subscriptionTier = {subscriptionTier} Purchases = {Purchases} likerCount = {likerCount} unread = {unread} ref = {navigationRef} messages = {messages} setMessages = {setMessages} chatUser={chatUser} setChatUser={setChatUser} loadMessages = {loadMessages} connectWs = {connectWs} ws = {ws} serverUrl = {BASE_URL} resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
           
           {/* Notifications */}
           {user._id && (

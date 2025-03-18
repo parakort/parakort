@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     borderColor: "red"
   },
   levelButton: {
-    width: 60, // Adjust width as needed
+    width: 60, 
     padding: 2,
     borderRadius: 50,
     alignItems: "center",
@@ -155,3 +155,4 @@ const styles = StyleSheet.create({
 });
 
 export default DemographicPicker;
+ 

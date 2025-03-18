@@ -25,8 +25,7 @@ const Likes = (props) => {
   const navigate = useNavigation();
 
   const filteredLikers = useMemo(() =>
-    props.likers
-      .filter(liker =>
+    props.likers?.filter(liker =>
         !props.dislikes.includes(liker) &&
         !matchUids.includes(liker)
       ),
@@ -44,7 +43,7 @@ const Likes = (props) => {
 
 
   // If user has likers and is subscribed, show the likers
-  if (props.subscriptionTier === 'Premium' || props.subscriptionTier === 'Elite') {
+  if (props.subscriptionTier === 'Pro' || props.subscriptionTier === 'Premium' || props.subscriptionTier === 'Elite') {
     // If user has no likers
     if (props.likers.length === 0) {
       return (
@@ -106,7 +105,7 @@ const Likes = (props) => {
         
         <TouchableOpacity 
           style={styles.upgradeButton}
-          onPress={() => {props.paywall(); navigate.navigate('Profile')}}
+          onPress={() => {props.showPaywall("Premium");}}
           activeOpacity={0.8}
         >
           <Text style={styles.upgradeButtonText}>Upgrade Now</Text>

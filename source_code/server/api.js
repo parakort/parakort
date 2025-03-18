@@ -16,6 +16,12 @@
   let mega
   const mongoose = require('mongoose');
   const { Types: { ObjectId } } = mongoose;
+  const OpenAI = require('openai');
+
+  // Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.GPT_KEY,
+});
 
   // image uploads
   const multer = require('multer');
@@ -122,7 +128,6 @@ pingUrl();
 
 async function maintainUsers() {
   const currentDate = new Date();
-  
   // Email admin a confirmation that the server is running
   const mailOptions = {
     from: process.env.MAILER_USER,
@@ -130,18 +135,79 @@ async function maintainUsers() {
     subject: `Successful ${process.env.APP_NAME} Maintenance`,
     text: `Hi Peter, just a confirmation that maintenance has run for all ${process.env.APP_NAME} users successfully.`,
   };
-  
   // Send the email
   transporter.sendMail(mailOptions, (error, info) => {
     if (error) {
       console.log('Error sending maintenance confirmation email:', error);
     }
   });
-  
-  // SUBSCRIPTIONS
+
+  // Define token counts for each tier
+  const tierTokens = {
+    'pro': parseInt(process.env.PRO_TOKEN_COUNT),
+    'premium': parseInt(process.env.PREMIUM_TOKEN_COUNT),
+    'elite': parseInt(process.env.ELITE_TOKEN_COUNT)
+  };
+
+  // Track maintenance statistics
+  let stats = {
+    total: 0,
+    renewed: 0,
+    expired: 0,
+    free: 0,
+    byTier: {
+      pro: 0,
+      premium: 0,
+      elite: 0
+    }
+  };
+
+  // DAILY TOKEN REFRESH
+  // Find all users (to give daily tokens)
+  let allUsers = await User.find({});
+  stats.total = allUsers.length;
+
+  // Iterate through each user and update tokens based on subscription status
+  for (const user of allUsers) {
+    // Get user's current subscription tier
+    const tier = user.subscription_tier;
+    
+    if (tier && ['pro', 'premium', 'elite'].includes(tier)) {
+      // User is subscribed, check if subscription is still active
+      const subscribed = await isSubscribed(user._id, tier);
+      
+      if (subscribed) {
+        // User is still subscribed, renew tokens based on their tier
+        const tokenCount = tierTokens[tier] || tierTokens['pro'];
+        await User.updateOne(
+          { _id: user._id },
+          { $set: { tokens: tokenCount } }
+        );
+        // Update statistics
+        stats.renewed++;
+        stats.byTier[tier]++;
+      } else {
+        // Subscription expired, mark as non-subscribed
+        await User.updateOne(
+          { _id: user._id },
+          { $set: { subscription_tier: null, tokens: parseInt(process.env.FREE_TOKEN_COUNT) } }
+        );
+        stats.expired++;
+        stats.free++;
+      }
+    } else {
+      // User is not subscribed, give them free tokens
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { tokens: parseInt(process.env.FREE_TOKEN_COUNT) } }
+      );
+      stats.free++;
+    }
+  }
+
+  /* MONTHLY RENEWAL LOGIC (COMMENTED OUT)
   // Find all users that renew today and check/update entitlements
   let users = await User.find({renewal_date: currentDate.getDate()});
-  
   // Track maintenance statistics
   let stats = {
     total: users.length,
@@ -153,53 +219,39 @@ async function maintainUsers() {
       elite: 0
     }
   };
-  
-  // Define token counts for each tier
-  const tierTokens = {
-    'pro': parseInt(process.env.PRO_TOKEN_COUNT),
-    'premium': parseInt(process.env.PREMIUM_TOKEN_COUNT),
-    'elite': parseInt(process.env.ELITE_TOKEN_COUNT)
-  };
-  
+
   // Iterate through each user and update tokens if they have an active entitlement
   for (const user of users) {
     // Get user's current subscription tier (default to 'pro' if not set)
     const tier = user.subscription_tier || 'pro';
-    
     // Check if user is still subscribed to their tier
     const subscribed = await isSubscribed(user._id, tier);
-    
     if (subscribed) {
       // User is still subscribed, renew tokens based on their tier
       const tokenCount = tierTokens[tier] || tierTokens['pro'];
-      
       await User.updateOne(
-        { _id: user._id }, 
+        { _id: user._id },
         { $set: { tokens: tokenCount } }
       );
-      
       // Update statistics
       stats.renewed++;
       stats.byTier[tier]++;
     } else {
       // It looks like they expired today. Don't remove tokens but stop future renewals.
       await User.updateOne(
-        { _id: user._id }, 
+        { _id: user._id },
         { $set: { renewal_date: 0, subscription_tier: null} }
-        
       );
-      
       stats.expired++;
     }
   }
-  
+  */
+
   // Log maintenance statistics
-  console.log(`Maintenance complete: ${stats.renewed}/${stats.total} subscriptions renewed`);
+  console.log(`Maintenance complete: ${stats.renewed} subscriptions renewed, ${stats.free} free users served`);
   console.log(`Renewed by tier - Pro: ${stats.byTier.pro}, Premium: ${stats.byTier.premium}, Elite: ${stats.byTier.elite}`);
-  
   return stats;
 }
-
 
 
   // Endpoints
@@ -327,6 +379,146 @@ async function sendNotificationToUser(userId, title, body, data = {}) {
 // });
 
 
+// Sport suggestions
+
+
+// Cache to store venue results to minimize API calls
+const venueCache = new Map();
+const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
+
+// Get cache key from locations and sports
+const getCacheKey = (myLocation, theirLocation, sports) => {
+  const sortedSports = [...sports].sort((a, b) => a.name.localeCompare(b.name));
+  return `${myLocation.latitude},${myLocation.longitude}|${theirLocation.latitude},${theirLocation.longitude}|${sortedSports.map(s => s.name).join(',')}`;
+};
+
+// Helper to calculate midpoint between two locations
+const calculateMidpoint = (lat1, lon1, lat2, lon2) => {
+  return {
+    latitude: (lat1 + lat2) / 2,
+    longitude: (lon1 + lon2) / 2
+  };
+};
+
+
+router.post('/findSportsVenues', async (req, res) => {
+  try {
+    const { myLocation, theirLocation, overlappingSports, uid } = req.body;
+
+    // Check if the user has a subscription_tier of "elite"
+    const user = await User.findById(uid, { subscription_tier: 1 });
+    const isElite = user && user.subscription_tier === 'elite';
+
+    if (!isElite) {
+      return res.status(403).json({ message: 'User does not have access to this feature' });
+    }
+    
+    if (!myLocation || !theirLocation || !overlappingSports || !Array.isArray(overlappingSports)) {
+      return res.status(400).json({ message: 'Missing required data' });
+    }
+    
+    if (overlappingSports.length === 0) {
+      return res.status(200).json({ venues: {} });
+    }
+    
+    // Check cache
+    const cacheKey = getCacheKey(myLocation, theirLocation, overlappingSports);
+    if (venueCache.has(cacheKey)) {
+      const cachedData = venueCache.get(cacheKey);
+      if (Date.now() - cachedData.timestamp < CACHE_EXPIRY) {
+        return res.status(200).json(cachedData.data);
+      }
+      // Cache expired, remove it
+      venueCache.delete(cacheKey);
+    }
+    
+    // Calculate midpoint for more equidistant results
+    const midpoint = calculateMidpoint(
+      myLocation.latitude, 
+      myLocation.longitude, 
+      theirLocation.latitude, 
+      theirLocation.longitude
+    );
+    
+    // Construct the prompt for ChatGPT
+    const sportsList = overlappingSports.map(sport => sport.name).join(', ');
+    
+    const prompt = `I need to find sports venues for playing ${sportsList} that are reasonably equidistant between two people.
+
+Person 1 location: Latitude ${myLocation.latitude}, Longitude ${myLocation.longitude}
+Person 2 location: Latitude ${theirLocation.latitude}, Longitude ${theirLocation.longitude}
+Midpoint: Latitude ${midpoint.latitude}, Longitude ${midpoint.longitude}
+
+For each overlapping sport (${sportsList}), find up to 3 public venues where they can play. Prioritize venues that:
+1. Are approximately equidistant from both people
+2. Offer multiple sports from the list (better if one venue offers multiple options)
+3. Are public venues (not private clubs unless they're accessible to the public)
+
+For each venue, include:
+- Name
+- Address
+- Distance from the midpoint
+- Any other sports from our list that are available there
+
+Format the results as JSON like this:
+{
+  "venues": {
+    "Sport Name": [
+      {
+        "name": "Venue Name",
+        "address": "Full address",
+        "distance": "X miles/km away from midpoint",
+        "otherSports": ["Other Sport 1", "Other Sport 2"]
+      }
+    ]
+  }
+}
+
+Ensure you have at least one venue for each sport, even if they're not perfectly equidistant.`;
+
+    // Call ChatGPT API using GPT-3.5 Turbo (cheapest model with web browsing)
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo-0125", // Cheapest model with relevant capabilities
+      messages: [
+        { 
+          role: "system", 
+          content: "You are a helpful assistant that finds sports venues based on location data. You should provide specific venue recommendations with accurate information that the users can act on." 
+        },
+        { role: "user", content: prompt }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.2, // Lower temperature for more consistent results
+    });
+    
+    // Parse the response
+    const responseContent = completion.choices[0].message.content;
+    let venuesData;
+    
+    try {
+      venuesData = JSON.parse(responseContent);
+    } catch (e) {
+      // If parsing fails, try to extract JSON from the text
+      const jsonMatch = responseContent.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        venuesData = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('Failed to parse API response');
+      }
+    }
+    
+    // Add to cache
+    venueCache.set(cacheKey, {
+      timestamp: Date.now(),
+      data: venuesData
+    });
+    
+    return res.status(200).json(venuesData);
+    
+  } catch (error) {
+    console.error('Error finding sports venues:', error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
 
 // Endpoint to unmatch two users and add to dislikes
 // src is doing the action, dest needs to be made aware, if they are on the app
@@ -395,7 +587,7 @@ router.post('/matchUser', async (req, res) => {
     }
 
     // Send notification to premium user if this is not a mutual match
-    if (!mutual && (destUser.subscription_tier === 'premium' || destUser.subscription_tier === 'elite')) {
+    if (!mutual && (destUser.subscription_tier === 'pro' || destUser.subscription_tier === 'premium' || destUser.subscription_tier === 'elite')) {
       // Send push notification to premium user about the new like
       try {
         await sendNotificationToUser(
@@ -507,75 +699,113 @@ const wss = new WebSocket.Server({ port: 8080 });
 wss.on('connection', (ws) => {
   ws.on('message', async (message) => {
     const parsedMessage = JSON.parse(message);
-  
+    
     if (parsedMessage.type === 'register') {
       users[parsedMessage.userId] = ws;
       //console.log("Websocket connected", parsedMessage.userId);
     } else if (parsedMessage.type === 'message') {
-  
       const recipientWs = users[parsedMessage.recipientId];
-      if (recipientWs) {
-        recipientWs.send(JSON.stringify({type: "message", message: parsedMessage.text, timestamp: parsedMessage.timestamp, sender: false}));
+      
+      // Create message object to send to recipient, preserving special message properties
+      const messageToSend = {
+        type: "message", 
+        message: parsedMessage.text, 
+        timestamp: parsedMessage.timestamp, 
+        sender: false
+      };
+      
+      // Add special message properties if they exist
+      if (parsedMessage.isSpecial) {
+        messageToSend.isSpecial = true;
+        messageToSend.specialType = parsedMessage.specialType;
       }
-
+      
+      // Send message to recipient if they're connected
+      if (recipientWs) {
+        recipientWs.send(JSON.stringify(messageToSend));
+      }
+      
       // Send push notification to the recipient
       const recipient = await User.findById(parsedMessage.recipientId);
       if (recipient) {
+        // For special messages, create a more descriptive notification
+        let notificationBody;
+        
+        if (parsedMessage.isSpecial && parsedMessage.specialType === "venuesSummary") {
+          notificationBody = "Sent you places to play together!";
+        } else if (parsedMessage.isSpecial) {
+          // try {
+          //   const specialData = JSON.parse(parsedMessage.text);
+          //   notificationBody = specialData.message || "Sent you a special message";
+          // } catch (e) {
+          //   notificationBody = "Sent you a special message";
+          // }
+          return
+        } else {
+          notificationBody = `${parsedMessage.text.substring(0, 30)}`;
+        }
+        
         const title = parsedMessage.senderName;
-        const body = `${parsedMessage.text.substring(0, 30)}`;
         const data = { type: 'message', sender: parsedMessage.senderId };
-        // await recipient.sendPushNotification(title, body, data);
-        // send push notification to user
-        sendNotificationToUser(parsedMessage.recipientId, title, body, data);
+        
+        sendNotificationToUser(parsedMessage.recipientId, title, notificationBody, data);
       }
-
+      
       // Forward the message and store it in each user's database document
       let chatSender = await Chat.findOne({ user: parsedMessage.senderId });
-
       if (!chatSender) {
         chatSender = new Chat({ user: parsedMessage.senderId, chats: new Map() });
       }
-
       if (!chatSender.chats.has(parsedMessage.recipientId)) {
         chatSender.chats.set(parsedMessage.recipientId, []);
       }
-
-      chatSender.chats.get(parsedMessage.recipientId).push({
+      
+      // Create message object for sender's chat history
+      const senderMessageObj = {
         message: parsedMessage.text,
         sender: true,
         timestamp: parsedMessage.timestamp,
-      });
-
+      };
+      
+      // Add special message properties if they exist
+      if (parsedMessage.isSpecial) {
+        senderMessageObj.isSpecial = true;
+        senderMessageObj.specialType = parsedMessage.specialType;
+      }
+      
+      chatSender.chats.get(parsedMessage.recipientId).push(senderMessageObj);
       await chatSender.save();
-
+      
       // Find or create a chat for the recipient
       let chatRecipient = await Chat.findOne({ user: parsedMessage.recipientId });
       if (!chatRecipient) {
         chatRecipient = new Chat({ user: parsedMessage.recipientId, chats: new Map() });
       }
-
       if (!chatRecipient.chats.has(parsedMessage.senderId)) {
         chatRecipient.chats.set(parsedMessage.senderId, []);
       }
-
-      chatRecipient.chats.get(parsedMessage.senderId).push({
+      
+      // Create message object for recipient's chat history
+      const recipientMessageObj = {
         message: parsedMessage.text,
         sender: false,
         timestamp: parsedMessage.timestamp,
-      });
-
+      };
+      
+      // Add special message properties if they exist
+      if (parsedMessage.isSpecial) {
+        recipientMessageObj.isSpecial = true;
+        recipientMessageObj.specialType = parsedMessage.specialType;
+      }
+      
+      chatRecipient.chats.get(parsedMessage.senderId).push(recipientMessageObj);
       await chatRecipient.save();
-
-
+      
       // Update matches for both users for the last chat timestamp
-
-      // Sets unread to true for the recipient. Caveat: If other user is already in the chat, shouldn't do this.
-      // Solution: useEffect with messages array for recipient, in here, set unread to false.
-
       await User.updateOne(
         { _id: parsedMessage.recipientId },
-        { 
-          $set: { 
+        {
+          $set: {
             "matches.$[elem].timestamp": Date.now(),
             "matches.$[elem].unread": true
           }
@@ -585,11 +815,12 @@ wss.on('connection', (ws) => {
           new: true,
         }
       );
+      
       await User.updateOne(
         { _id: parsedMessage.senderId },
-        { 
-          $set: { 
-            "matches.$[elem].timestamp": Date.now() 
+        {
+          $set: {
+            "matches.$[elem].timestamp": Date.now()
           }
         },
         {
@@ -597,11 +828,24 @@ wss.on('connection', (ws) => {
           new: true,
         }
       );
-
+      
+      // Create a more descriptive preview text for special messages
+      let previewText;
+      if (parsedMessage.isSpecial && parsedMessage.specialType === "venues") {
+        previewText = "Sent places to play together!";
+      } else if (parsedMessage.isSpecial) {
+        try {
+          const specialData = JSON.parse(parsedMessage.text);
+          previewText = specialData.message || "Sent a special message";
+        } catch (e) {
+          previewText = "Sent a special message";
+        }
+      } else {
+        previewText = parsedMessage.text.substring(0, 20);
+      }
+      
       // Force the recipient to refresh their match list
-      // The second parameter alerts them that there is a new message from this user
-      forceUpdate(parsedMessage.recipientId, parsedMessage.senderId, parsedMessage.text.substring(0,20), parsedMessage.senderName)
-  
+      forceUpdate(parsedMessage.recipientId, parsedMessage.senderId, previewText, parsedMessage.senderName);
     }
   });
   
@@ -668,6 +912,14 @@ router.post('/readMessage', async(req, res) => {
 
 
 router.post('/suggestUser', async (req, res) => {
+
+
+    // ensure the requesting user has tokens to suggest a user
+    const user = await User.findById(req.body.uid, 'tokens');
+    if (!user || user.tokens < 1) {
+      return res.status(403).send('Insufficient tokens');
+    }
+
   const filters = req.body.filters;
   const suggestions = req.body.suggestions
   const matches = req.body.matches || [];
@@ -693,7 +945,7 @@ router.post('/suggestUser', async (req, res) => {
 
 
     const query = {
-      _id: { $nin: [...matches, ...dislikes, ...suggestions] }, // Exclude matches and dislikes
+      _id: { $nin: [...matches, ...dislikes, ...suggestions, req.body.uid] }, // Exclude matches and dislikes
        'profile.birthdate': { $gte: ageMinDateStr, $lte: ageMaxDateStr },
       ...(filters.male || filters.female
         ? { 'profile.isMale': filters.male && filters.female ? { $in: [true, false] } : filters.male ? true : { $ne: true } } // Match gender if specified
@@ -745,12 +997,25 @@ router.post('/suggestUser', async (req, res) => {
       });
     }
 
+
+
     // Perform the query with a priority for sports matches
     let users = await User.find(query).limit(1).exec();
 
     if (users.length > 0) {
       console.log("\nMatch Found:");
       console.log(users[0].profile.firstName, users[0].profile.lastName);
+
+      // Decrease the user's tokens by 1
+      if (req.body.swiped)
+      {
+        await User.updateOne(
+          { _id: req.body.uid },
+          { $inc: { tokens: -1 } }
+        );
+      }
+     
+
       if (verboseLogs) {
         const matchedUser = users[0];
         
@@ -912,12 +1177,14 @@ router.post('/downloadMedia', async (req,res) => {
 
     
     profile.age = calculateAge(profile.birthdate) // Add the user's age
+    profile.location = user.location
+    profile.tier = user.subscription_tier
 
     res.status(status).send({media: buffers, profile: profile, sports: sports})
   }
   else
   {
-    res.status(500).send(e)
+    res.status(269).send()
   }
 })
 
@@ -1097,6 +1364,7 @@ async function isSubscribed(user_id, tier = 'pro') {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
+  
 
 
   // Ensure alive
@@ -1175,7 +1443,7 @@ async function isSubscribed(user_id, tier = 'pro') {
     try {
         const usersToAdd = [];
         const endpoint = 'https://api.openai.com/v1/chat/completions';
-        const query = `Your task is to respond with (and only with) a stringified JSON object that i can directly use JSON.parse on your response. It is to be an array of objects, of length ${count}, consisting of sample users for my program. Do not write a script to do it, generate it with AI. The fields for each are as follows: isMale: a random true or false value. firstName: a random first name, that matches the gender you chose. lastName: a random last name. bio: a random bio, of 5-20 words, where the user tells about themself briefly (they are looking for people to play sports with). lat: a random latitude value, but this must be within a 50 mile radius of 40.77781589239908, -73.03254945210463. lon: a random longitude, following the same radius constraint aforementioned.`
+        const query = `Your task is to respond with (and only with) a stringified JSON object that i can directly use JSON.parse on your response. It is to be an array of objects, of length ${count}, consisting of sample users for my program. Do not write a script to do it, generate it with AI. The fields for each are as follows: isMale: a random true or false value. firstName: a random first name, that matches the gender you chose. lastName: a random last name. bio: a random bio, of 5-20 words, where the user tells about themself briefly (they are looking for people to play sports with). lat: a random latitude value, but this must be within a 50 mile radius of 41.722896, -77.262650. lon: a random longitude, following the same radius constraint aforementioned.`
 
         const messages = [
           { role: 'user', content: query },
@@ -1430,18 +1698,20 @@ router.post('/newSubscriber', async(req, res) => {
   
       const userObject = excludeFields(user.toObject());
   
+      res.status(200).send({ user: userObject });
+
       // Conditional response for premium and non-premium users
-      if (user.subscription_tier) {
-        res.status(200).send({ user: userObject });
-      } else {
-        const { likers, ...rest } = userObject;
-        res.status(200).send({
-          user: {
-            ...rest,
-            likerCount: likers.length, // Replace `likers` with `likerCount`
-          },
-        });
-      }
+      // if (user.subscription_tier) {
+      //   res.status(200).send({ user: userObject });
+      // } else {
+      //   const { likers, ...rest } = userObject;
+      //   res.status(200).send({
+      //     user: {
+      //       ...rest,
+      //       likerCount: likers.length, // Replace `likers` with `likerCount`
+      //     },
+      //   });
+      // }
     } catch (error) {
       console.error("Error finding user:", error);
       res.status(500).send({

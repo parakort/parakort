@@ -39,10 +39,8 @@ const Tab = createBottomTabNavigator();
 
 const Navigation = React.forwardRef((props, ref) => {
 
-
   return (
     <NavigationContainer theme={MyTheme} ref={ref}>
-      
       <Tab.Navigator
         screenOptions={({ route }) => ({
           tabBarIcon: ({ focused, color, size }) => {
@@ -76,6 +74,8 @@ const Navigation = React.forwardRef((props, ref) => {
             refreshSuggestion={props.refreshSuggestion} 
             swiped={props.swiped} 
             currentSuggestion={props.currentSuggestion}
+            showPaywall={props.showPaywall}
+            tokens = {props.tokens}
           />
         }/>
 
@@ -91,8 +91,7 @@ const Navigation = React.forwardRef((props, ref) => {
             subscriptionTier={props.subscriptionTier}
 
             paywall = {() => {props.setPaywall(true)}}
-            
-
+            showPaywall = {props.showPaywall}
           />
         }/>
 
@@ -111,30 +110,42 @@ const Navigation = React.forwardRef((props, ref) => {
               unmatch={props.unmatch}
               matches={props.matches}
               media={props.media}
+              showPaywall={props.showPaywall}
             />
           )}
         </Tab.Screen>
 
-        <Tab.Screen name="Profile" children={()=>
-          <Profile 
-            updateField={props.updateField} 
-            updateFilter={props.updateFilter} 
-            filters={props.filters} 
-            updateMedia={props.updateMedia} 
-            user={props.user} 
-            media={props.media} 
-            profile={props.profile} 
-            updateProfile={props.updateProfile} 
-            logout={props.logout} 
-            deleteAccount={props.deleteAccount}
+        <Tab.Screen 
+          name="Profile" 
+          listeners={({ navigation }) => ({
+            tabPress: (e) => {
+               props.setPaywall(false)
+            },
+          })}
+          children={()=>
+            <Profile 
+              updateField={props.updateField} 
+              updateFilter={props.updateFilter} 
+              filters={props.filters} 
+              updateMedia={props.updateMedia} 
+              user={props.user} 
+              media={props.media} 
+              profile={props.profile} 
+              updateProfile={props.updateProfile} 
+              logout={props.logout} 
+              deleteAccount={props.deleteAccount}
 
-            paywall = {props.paywall}
-            setPaywall = {props.setPaywall}
-            Purchases = {props.Purchases}
-            purchase = {props.purchase}
-            subscriptionTier = {props.subscriptionTier}
-          />
-        }/>
+              paywall = {props.paywall}
+              setPaywall = {props.setPaywall}
+              Purchases = {props.Purchases}
+              purchase = {props.purchase}
+              subscriptionTier = {props.subscriptionTier}
+              selectedTier = {props.selectedTier}
+              setSelectedTier = {props.setSelectedTier}
+              tokens = {props.tokens}
+            />
+          }
+        />
       </Tab.Navigator>
     </NavigationContainer>
   );
