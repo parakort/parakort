@@ -403,10 +403,10 @@ const calculateMidpoint = (lat1, lon1, lat2, lon2) => {
 
 router.post('/findSportsVenues', async (req, res) => {
   try {
-    const { myLocation, theirLocation, overlappingSports, uid } = req.body;
+    const { myLocation, theirLocation, overlappingSports, myuid } = req.body;
 
     // Check if the user has a subscription_tier of "elite"
-    const user = await User.findById(uid, { subscription_tier: 1 });
+    const user = await User.findById(myuid, { subscription_tier: 1 });
     const isElite = user && user.subscription_tier === 'elite';
 
     if (!isElite) {
@@ -434,10 +434,10 @@ router.post('/findSportsVenues', async (req, res) => {
     
     // Calculate midpoint for more equidistant results
     const midpoint = calculateMidpoint(
-      myLocation.latitude, 
-      myLocation.longitude, 
-      theirLocation.latitude, 
-      theirLocation.longitude
+      myLocation.lat, 
+      myLocation.lon, 
+      theirLocation.lat, 
+      theirLocation.lon
     );
     
     // Construct the prompt for ChatGPT
@@ -445,8 +445,8 @@ router.post('/findSportsVenues', async (req, res) => {
     
     const prompt = `I need to find sports venues for playing ${sportsList} that are reasonably equidistant between two people.
 
-Person 1 location: Latitude ${myLocation.latitude}, Longitude ${myLocation.longitude}
-Person 2 location: Latitude ${theirLocation.latitude}, Longitude ${theirLocation.longitude}
+Person 1 location: Latitude ${myLocation.lat}, Longitude ${myLocation.lon}
+Person 2 location: Latitude ${theirLocation.lat}, Longitude ${theirLocation.lon}
 Midpoint: Latitude ${midpoint.latitude}, Longitude ${midpoint.longitude}
 
 For each overlapping sport (${sportsList}), find up to 3 public venues where they can play. Prioritize venues that:
@@ -457,41 +457,134 @@ For each overlapping sport (${sportsList}), find up to 3 public venues where the
 For each venue, include:
 - Name
 - Address
-- Distance from the midpoint
+- Coordinates (latitude and longitude)
 - Any other sports from our list that are available there
 
-Format the results as JSON like this:
-{
-  "venues": {
-    "Sport Name": [
-      {
-        "name": "Venue Name",
-        "address": "Full address",
-        "distance": "X miles/km away from midpoint",
-        "otherSports": ["Other Sport 1", "Other Sport 2"]
-      }
-    ]
-  }
-}
+Make sure to search the web to find actual venues near these coordinates.`;
 
-Ensure you have at least one venue for each sport, even if they're not perfectly equidistant.`;
-
-    // Call ChatGPT API using GPT-3.5 Turbo (cheapest model with web browsing)
-    const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo-0125", // Cheapest model with relevant capabilities
+    // Initial request with web search capability
+    const initialResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
       messages: [
-        { 
-          role: "system", 
-          content: "You are a helpful assistant that finds sports venues based on location data. You should provide specific venue recommendations with accurate information that the users can act on." 
+        {
+          role: "system",
+          content: "You are a helpful assistant that finds sports venues based on location data. You should search the web to provide specific venue recommendations with accurate information that the users can act on."
         },
         { role: "user", content: prompt }
       ],
-      response_format: { type: "json_object" },
-      temperature: 0.2, // Lower temperature for more consistent results
+      tools: [{
+        type: "function",
+        function: {
+          name: "web_search",
+          description: "Search the web for sports venues near specific locations",
+          parameters: {
+            type: "object",
+            properties: {
+              query: {
+                type: "string",
+                description: "The search query"
+              }
+            },
+            required: ["query"]
+          }
+        }
+      }]
     });
-    
+
+    // Process all tool calls to collect search results
+    let messages = [
+      {
+        role: "system",
+        content: "You are a helpful assistant that finds sports venues based on location data. You should search the web to provide specific venue recommendations with accurate information that the users can act on."
+      },
+      { role: "user", content: prompt }
+    ];
+
+    if (initialResponse.choices[0]?.message?.tool_calls) {
+      // Add the assistant's message with tool calls
+      messages.push({
+        role: "assistant",
+        content: null,
+        tool_calls: initialResponse.choices[0].message.tool_calls
+      });
+
+      // Process each tool call
+      for (const toolCall of initialResponse.choices[0].message.tool_calls) {
+        if (toolCall.function.name === "web_search") {
+          try {
+            const args = JSON.parse(toolCall.function.arguments);
+            const query = args.query;
+            
+            // Make the web search - using the OpenAI API's built-in web search
+            const searchResponse = await openai.chat.completions.create({
+              model: "gpt-4o",
+              messages: [
+                {
+                  role: "user",
+                  content: `Search for: ${query}`
+                }
+              ],
+              tools: [{
+                type: "function",
+                function: {
+                  name: "web_search",
+                  description: "Search the web",
+                  parameters: {
+                    type: "object",
+                    properties: {
+                      query: {
+                        type: "string"
+                      }
+                    },
+                    required: ["query"]
+                  }
+                }
+              }]
+            });
+            
+            // Extract and process search results
+            const searchResults = JSON.stringify({
+              results: "Search results for " + query
+            });
+            
+            // Add the search results to messages
+            messages.push({
+              role: "tool",
+              tool_call_id: toolCall.id,
+              content: searchResults
+            });
+          } catch (error) {
+            console.error("Error processing web search:", error);
+            messages.push({
+              role: "tool",
+              tool_call_id: toolCall.id,
+              content: JSON.stringify({ error: "Failed to complete web search" })
+            });
+          }
+        }
+      }
+    }
+
+    // Final request to get formatted results
+    messages.push({
+      role: "user",
+      content: "Based on the search results above, please provide a list of venues for each sport. Include coordinates (latitude and longitude) for each venue. Format the response as a JSON object with the following structure:\n\n" +
+        "{\n  \"venues\": {\n    \"Sport Name\": [\n      {\n" +
+        "        \"name\": \"Venue Name\",\n" +
+        "        \"address\": \"Full address\",\n" +
+        "        \"coordinates\": {\"lat\": 41.123, \"lng\": -77.456},\n" +
+        "        \"otherSports\": [\"Other Sport 1\", \"Other Sport 2\"]\n      }\n    ]\n  }\n}"
+    });
+
+    const finalResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: messages,
+      response_format: { type: "json_object" },
+      temperature: 0.2
+    });
+
     // Parse the response
-    const responseContent = completion.choices[0].message.content;
+    const responseContent = finalResponse.choices[0].message.content;
     let venuesData;
     
     try {
@@ -506,13 +599,71 @@ Ensure you have at least one venue for each sport, even if they're not perfectly
       }
     }
     
+    // Calculate accurate distances for each venue
+    const processedVenues = { venues: {} };
+    
+    for (const sport in venuesData.venues) {
+      // Map venues with calculated distances
+      const venuesWithDistances = venuesData.venues[sport].map(venue => {
+        // If venue has coordinates, calculate actual distance
+        if (venue.coordinates && venue.coordinates.lat && venue.coordinates.lng) {
+          const distanceFromMidpoint = calculateDistance(
+            midpoint.latitude,
+            midpoint.longitude,
+            venue.coordinates.lat,
+            venue.coordinates.lng
+          );
+          
+          const distanceFromPerson1 = calculateDistance(
+            myLocation.lat,
+            myLocation.lon,
+            venue.coordinates.lat,
+            venue.coordinates.lng
+          );
+          
+          const distanceFromPerson2 = calculateDistance(
+            theirLocation.lat,
+            theirLocation.lon,
+            venue.coordinates.lat,
+            venue.coordinates.lng
+          );
+          
+          return {
+            ...venue,
+            distance: `${distanceFromMidpoint.toFixed(1)} miles from midpoint`,
+            distanceDetails: {
+              fromMidpoint: `${distanceFromMidpoint.toFixed(1)} miles`,
+              fromPerson1: `${distanceFromPerson1.toFixed(1)} miles`,
+              fromPerson2: `${distanceFromPerson2.toFixed(1)} miles`
+            },
+            distanceValue: distanceFromMidpoint // Numeric value for sorting
+          };
+        } else {
+          // If no coordinates available, keep any distance that might be there
+          return {
+            ...venue,
+            distanceValue: Infinity // Put venues without coordinates at the end
+          };
+        }
+      });
+      
+      // Sort venues by distance from midpoint (closest first)
+      const sortedVenues = venuesWithDistances.sort((a, b) => a.distanceValue - b.distanceValue);
+      
+      // Remove the distanceValue property from the final output
+      processedVenues.venues[sport] = sortedVenues.map(venue => {
+        const { distanceValue, ...rest } = venue;
+        return rest;
+      });
+    }
+    
     // Add to cache
     venueCache.set(cacheKey, {
       timestamp: Date.now(),
-      data: venuesData
+      data: processedVenues
     });
     
-    return res.status(200).json(venuesData);
+    return res.status(200).json(processedVenues);
     
   } catch (error) {
     console.error('Error finding sports venues:', error);
@@ -520,10 +671,32 @@ Ensure you have at least one venue for each sport, even if they're not perfectly
   }
 });
 
+// Helper function to calculate distance between two points using Haversine formula
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 3958.8; // Earth's radius in miles
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distance = R * c; // Distance in miles
+  
+  return distance;
+}
+
+function toRadians(degrees) {
+  return degrees * Math.PI / 180;
+}
+
 // Endpoint to unmatch two users and add to dislikes
 // src is doing the action, dest needs to be made aware, if they are on the app
 // So forceUpdate for dest
 router.post('/unmatchUser', async (req, res) => {
+  console.log("unmatching", req.body.dest)
   try {
     const { src, dest } = req.body; // Get the user IDs from the request body
 

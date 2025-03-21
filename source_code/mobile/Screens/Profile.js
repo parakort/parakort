@@ -7,7 +7,7 @@ import SocialModal from '../Components/SocialModal';
 import DemographicPicker from '../Components/DemographicPicker'
 import RetryableImage from '../Components/RetryableImage';
 import Subscribe from '../Components/Subscribe';
-
+import LocationSettings from '../Components/LocationSettings';
 
 
 const Profile = (props) => {
@@ -255,7 +255,10 @@ useEffect(() => {
               resizeMode="cover"
             />
             <Text style = {{fontSize: 20, color: config.app.theme.creme}}>{props.profile.firstName} {props.subscriptionTier? `(${props.subscriptionTier})` : ""}</Text>
+            {props.subscriptionTier !== "Elite" && (
             <Text>{props.tokens} tokens</Text>
+
+            )}
 
           </View>
           
@@ -412,51 +415,47 @@ useEffect(() => {
 
           {/* Settings View */}
           {curPage == 2 && 
-          (
-          <View style = {styles.spreadContainer}>
+(
+<View style = {styles.spreadContainer}>
+  <View>
+    {props.subscriptionTier === "Premium" || props.subscriptionTier === "Elite" && (
+      <LocationSettings 
+      updateProfile={props.updateProfile} 
+      currentLocation={props.profile.location} 
+      setLocation={props.setLocation}
+    />
+    )}
+  </View>
 
-            <View>
+  {/* Bottom container */}
+  <View>
+    <View style={styles.buttonContainer}>
+      <TouchableOpacity
+        style={styles.buttonWithBorder}
+        onPress={handleUndoDislikes}
+      >
+        <Text style={styles.buttonText}>Undo Dislikes</Text>
+      </TouchableOpacity>
+    </View>
 
-            </View>
+    <View style={styles.buttonContainer}>
+      <TouchableOpacity
+        style={styles.buttonWithBorder}
+        onPress={handleLogout}
+      >
+        <Text style={styles.buttonText}>Logout</Text>
+      </TouchableOpacity>
 
-
-            {/* Bottom container */}
-        <View>
-          <View style={styles.buttonContainer}>
-            
-
-            <TouchableOpacity
-              style={styles.buttonWithBorder}
-              onPress={handleUndoDislikes}
-            >
-              <Text style={styles.buttonText}>Undo Dislikes</Text>
-            </TouchableOpacity>
-
-
-        </View>
-
-        <View style={styles.buttonContainer}>
-            
-            <TouchableOpacity
-              style={styles.buttonWithBorder}
-              onPress={handleLogout}
-            >
-              <Text style={styles.buttonText}>Logout</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.buttonWithBorder}
-              onPress={() => {setDelAccount(true)}}
-            >
-              <Text style={styles.buttonText}>Delete Account</Text>
-            </TouchableOpacity>
-
-
-        </View>
-            
-            </View>
-            </View>
-          )}
+      <TouchableOpacity
+        style={styles.buttonWithBorder}
+        onPress={() => {setDelAccount(true)}}
+      >
+        <Text style={styles.buttonText}>Delete Account</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+</View>
+)}
           
 
             

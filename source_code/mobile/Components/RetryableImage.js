@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Image, View, Text } from 'react-native';
 
-const RetryableImage = ({ uri, style, useLoading, bro }) => {
+const RetryableImage = ({ uri, style, useLoading }) => {
     const [retryCount, setRetryCount] = useState(0);
     const [trying, setTrying] = useState(true);
     const [imageUri, setImageUri] = useState(uri);

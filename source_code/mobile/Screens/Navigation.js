@@ -143,6 +143,8 @@ const Navigation = React.forwardRef((props, ref) => {
               selectedTier = {props.selectedTier}
               setSelectedTier = {props.setSelectedTier}
               tokens = {props.tokens}
+
+              setLocation = {props.setLocation}
             />
           }
         />

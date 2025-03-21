@@ -796,10 +796,17 @@ const saveFileFromBuffer = async (media) => {
 // remove the lock on the suggest loop and try again
 function resumeSuggestLoop(clearSuggestions)
 {
+  if (clearSuggestions)
+    {
+      setSuggestions([])
+      setCurrentSuggestion(null)
+    }
+
   // If we were unable to match with users
   if (haltSuggestLoop)
   {
     setHaltSuggestLoop(false)
+    
     suggestUser()
 
 
@@ -923,16 +930,17 @@ function logDifferences(obj1, obj2, log) {
   // Their media is downloaded beforehand
   useEffect(() => {
 
-
     if (suggestions)
     {
       // If the first suggestion media is invalid (null) we need to refresh it
-      if (media.size > 0 && !media.get(suggestions[0]))
-      {
-        deleteMedia(suggestions[0])
-        suggestUser()
-        return
-      }
+      // if (media.size > 0 && !media.get(suggestions[0]))
+      // {
+      //   deleteMedia(suggestions[0])
+      //   // Delete the frst suggestion from the array with state
+      //   setSuggestions((prevSuggestions) => prevSuggestions.slice(1))
+      //   // suggestUser()
+      //   return
+      // }
       AsyncStorage.setItem('suggestions', JSON.stringify(suggestions))
 
       // Do we need to generate more? Recurse if so.
@@ -941,7 +949,11 @@ function logDifferences(obj1, obj2, log) {
       }
 
       // Update the current suggestion to always point to the first item - can't we just use a pointer?
+      if (suggestions.length > 0)
+      {
       setCurrentSuggestion(media.get(suggestions[0]));
+      }
+    else setCurrentSuggestion(null)
       
     }
 
@@ -966,6 +978,9 @@ function logDifferences(obj1, obj2, log) {
   useEffect(() => {
     async function getMedia()
     {
+      // Delete all media - not doing because media does not persists anyway (this is empty here)
+      // await deleteAllFiles()
+
       // Load suggestions from async storage
       // State side effect will ensure we generate enough suggestions, recursively
       let storedSuggestions = await AsyncStorage.getItem('suggestions');
@@ -998,6 +1013,7 @@ function logDifferences(obj1, obj2, log) {
     if (profile && profile !== prevProfile.current) {
       updateField("profile", profile)
       prevProfile.current = profile;
+
     } 
     
   }, [profile])
@@ -1044,6 +1060,7 @@ function logDifferences(obj1, obj2, log) {
     // A: the list is full
     // B: we swiped
 
+
     setSuggestions(prevSuggestions => {
       if (swiped || prevSuggestions.length >= QUEUE_LEN) {
         // Create a new array excluding the first item
@@ -1089,7 +1106,7 @@ function logDifferences(obj1, obj2, log) {
     .catch((e) => {
       if (e.response.status == 404 || e.response.status == 403)
       {
-        //console.log("No suitable users")
+        console.log("No suitable users")
 
         // Stop trying and display no more users
         setHaltSuggestLoop(true)
@@ -1117,6 +1134,9 @@ function logDifferences(obj1, obj2, log) {
     // Abort if this user is in our suggestions list
     //if (suggestions.includes(uid)) return
 
+    // Abort if this id is not a key in the map
+    if (!media.has(uid)) return
+
     // Shallow copy of the map
     const updatedMap = new Map(media);
   
@@ -1134,7 +1154,6 @@ function logDifferences(obj1, obj2, log) {
 
     // Save the new media with state and to local storage
     setMedia(updatedMap);
-    console.log(updatedMap)
   }
 
 
@@ -1174,17 +1193,17 @@ function logDifferences(obj1, obj2, log) {
       {
         
         // Get their current location
-        const { location, error } = await getLocation();
-        if (error) {
-          console.log("error with location: ", error)
-          // permission denied - do not allow them in to app
+        // const { location, error } = await getLocation();
+        // if (error) {
+        //   console.log("error with location: ", error)
+        //   // permission denied - do not allow them in to app
 
-        } else {
+        // } else {
           
-          // We have their location!
-          setLocation({lat: location.coords.latitude, lon: location.coords.longitude})
+        //   // We have their location!
+        //   setLocation({lat: location.coords.latitude, lon: location.coords.longitude})
         
-        }
+        // }
 
         // axios.post(`${BASE_URL}/appOpened`, {user_id: user._id})
       }
@@ -1325,7 +1344,8 @@ function unmatch(uid)
     prevItems.filter(item => item.uid !== uid) // Filter out the item to remove
   );
   // delete the media for this user
-  deleteMedia(uid)
+  // Let's try just deleting all media when we open the app, and redownloading when needed
+  // deleteMedia(uid)
 
   // dislike this user
   setDislikes([...dislikes, uid])
@@ -1422,18 +1442,33 @@ function logIn(token)
 
     
       // Get their current location
-      // why do we need to do this if we do it every time we open the app?
       const { location, error } = await getLocation();
-      if (error) {
-        console.log("error with location: ", error)
-        // permission denied - do not allow them in to app
-
-      } else {
-        // We have their location!
-        setLocation({lat: location.coords.latitude, lon: location.coords.longitude})
-        
       
+      // if were not subscribed to a location-changing plan, or, if we choose to use current location, use current loc.
+      if ( !(res.data.user.subscription_tier === "elite" || res.data.user.subscription_tier === "premium") || res.data.user.profile.location.useCurrentLocation !== false)
+      {
+        
+        if (error) {
+          console.log("error with location: ", error)
+          // permission denied - do not allow them in to app
+  
+        } else {
+          // We have their location!
+          setLocation({lat: location.coords.latitude, lon: location.coords.longitude})
+          
+        }
+
       }
+      else if (res.data.user.profile.location.coordinates)
+      {
+        const { latitude, longitude } = res.data.user.profile.location.coordinates;
+        setLocation({lat: latitude, lon: longitude})
+      }
+      else // fallback to current location
+      {
+        setLocation({lat: location.coords.latitude, lon: location.coords.longitude})
+      }
+     
     
   
     
@@ -1579,7 +1614,7 @@ if (showSplash)
     return (
       <>
           {/* Navigation is the actual Screen which gets displayed based on the tab cosen */}
-          <Navigation setSelectedTier = {setSelectedTier} selectedTier = {selectedTier} showPaywall = {showPaywall} paywall = {paywall} setPaywall = {setPaywall} subscriptionTier = {subscriptionTier} Purchases = {Purchases} likerCount = {likerCount} unread = {unread} ref = {navigationRef} messages = {messages} setMessages = {setMessages} chatUser={chatUser} setChatUser={setChatUser} loadMessages = {loadMessages} connectWs = {connectWs} ws = {ws} serverUrl = {BASE_URL} resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
+          <Navigation setLocation = {setLocation} setSelectedTier = {setSelectedTier} selectedTier = {selectedTier} showPaywall = {showPaywall} paywall = {paywall} setPaywall = {setPaywall} subscriptionTier = {subscriptionTier} Purchases = {Purchases} likerCount = {likerCount} unread = {unread} ref = {navigationRef} messages = {messages} setMessages = {setMessages} chatUser={chatUser} setChatUser={setChatUser} loadMessages = {loadMessages} connectWs = {connectWs} ws = {ws} serverUrl = {BASE_URL} resumeSuggestLoop = {resumeSuggestLoop} haltSuggestLoop = {haltSuggestLoop} updateField = {updateField} matchUser = {matchUser} unmatch = {unmatch} likers = {likers} dislikes = {dislikes} matches = {matches} refreshSuggestion = {refreshSuggestion} updateFilter = {updateFilter} filters = {filters} updateMedia = {updateMedia} swiped = {swiped} currentSuggestion = {currentSuggestion} user = {user} media = {media} profile = {profile} updateProfile = {updateProfile} help = {showHelpModal} deleteAccount = {deleteAccount} purchase = {purchase} logout = {logOut} tokens = {tokens}></Navigation>
           
           {/* Notifications */}
           {user._id && (

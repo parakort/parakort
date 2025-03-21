@@ -281,6 +281,7 @@ const Chat = (props) => {
       // Call backend API with user locations and overlapping sports
       const myLocation = props.me.profile.location;
       const theirLocation = props.user.profile.location;
+      const myuid = props.myuid
       
       const response = await fetch(`${config.app.server}/findSportsVenues`, {
         method: 'POST',
@@ -291,7 +292,8 @@ const Chat = (props) => {
         body: JSON.stringify({
           myLocation,
           theirLocation,
-          overlappingSports
+          overlappingSports,
+          myuid
         })
       });
       

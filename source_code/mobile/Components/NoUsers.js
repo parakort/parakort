@@ -11,7 +11,7 @@ const NoUsers = (props) => {
             <View style = {{display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%"}}>
                 <View style = {{display: "flex", alignItems: "center"}}>
                     <Image
-                        source={require('../assets/alone.png')}
+                        source={require('../assets/sad-bird.png')}
                         style={{height: 140, marginTop: 20 }}
                         resizeMode="contain" // Ensures the image fits within its bounds
                     />
