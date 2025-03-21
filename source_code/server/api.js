@@ -1348,6 +1348,9 @@ router.post('/downloadMedia', async (req,res) => {
     profile = user.profile
     sports = user.filters.sports
 
+    if (!profile)
+      res.status(500).send("No profile")
+
     
     profile.age = calculateAge(profile.birthdate) // Add the user's age
     profile.location = user.location
