@@ -77,7 +77,7 @@ const openai = new OpenAI({
     userSports = sports.map(sport => ({
       sportId: sport._id,
       my_level: 1, // Default level to beginner
-      match_level: []
+      match_level: [1, 2, 3]
     }));
 
     console.log("Loaded sports")
@@ -1712,7 +1712,7 @@ router.post('/addSport', async (req, res) => {
     // Update all users to include the new sport
     await User.updateMany(
       {}, 
-      { $push: { 'filters.sports': { sportId: newSport._id, my_level: 0, match_level: [] } } }
+      { $push: { 'filters.sports': { sportId: newSport._id, my_level: 1, match_level: [1, 2, 3] } } }
     );
 
     res.status(201).send({ message: 'Sport added successfully', sport: newSport });
