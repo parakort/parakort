@@ -1,5 +1,5 @@
 
-import {AppState, Platform, Modal, View, Button, Text, TouchableOpacity, TextInput, TouchableWithoutFeedback, Keyboard, Linking, Image} from 'react-native';
+import {AppState, Platform, Modal, View, Button, Text, TouchableOpacity, TextInput, TouchableWithoutFeedback, Keyboard, Linking, Image, Alert} from 'react-native';
 import Navigation from './Screens/Navigation';
 import Login from './Components/Login';
 import Setup from './Components/Setup.js';
@@ -252,7 +252,7 @@ export default function App() {
   useEffect(() => {
     if (chatUser && messages.length > 0) {
     // If our currently opened chat is marked as unread, mark it as read
-      if (matches.find((item) => ( item.mutual && item.uid == chatUser.uid)).unread)
+      if (matches.find((item) => ( item.mutual && item.uid == chatUser.uid))?.unread)
       {
 
 
@@ -537,7 +537,7 @@ export default function App() {
         });
 
         // Specify this is a new user (needs a new folder)
-        formData.append('new', profile.media.length )
+        formData.append('new', profile?.media.length > 0 )
         formData.append('uid', user._id)
 
   
@@ -569,10 +569,12 @@ export default function App() {
   // Images must be considered carefully:
   // Must upload media too through endpoint.
   async function makeProfile(profile_in)
+
   {
     // Upload the new user's media and store their profile
-    uploadMedia(profile_in.media)
+    await uploadMedia(profile_in.media)
     setProfile(profile_in) // side effect will update db
+
   }
 
   /** 
@@ -1013,6 +1015,8 @@ function logDifferences(obj1, obj2, log) {
     if (profile && profile !== prevProfile.current) {
       updateField("profile", profile)
       prevProfile.current = profile;
+     downloadMediaFiles(user._id)
+
 
     } 
     

@@ -66,4 +66,31 @@ titleContainer: {
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  emptyContainer: {
+    marginTop: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    backgroundColor: config.app.theme.creme,
+    borderRadius: 16,
+    shadowColor: config.app.theme.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    marginHorizontal: 16,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: config.app.theme.black,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 16,
+    color: config.app.theme.gray,
+    marginTop: 8,
+    textAlign: 'center',
+  },
 });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Platform, View, Text, StyleSheet, TextInput, TouchableWithoutFeedback, Keyboard, Switch, TouchableOpacity, Alert, SafeAreaView, Image, Dimensions, KeyboardAvoidingView } from 'react-native';
+import { Platform, View, Text, StyleSheet, TextInput, TouchableWithoutFeedback, Keyboard, Switch, TouchableOpacity, Alert, SafeAreaView, Image, Dimensions, KeyboardAvoidingView, ScrollView } from 'react-native';
 import config from '../app.json'
 import Media from '../Components/Media';
 import SkillPicker from '../Components/SkillPicker';
@@ -20,13 +20,14 @@ const Profile = (props) => {
     const [curPlatform, setCurPlatform] = useState('') // platform to change link to
 
     const screenWidth = Dimensions.get('window').width;
+    const screenHeight = Dimensions.get('window').height;
     const imageSize = screenWidth * 0.3;
     const borderRadius = imageSize / 2;
 
     const [curPage, setCurPage] = useState(0)
     const [curFilter, setCurFilter] = useState(0)
 
-    const [bio, setBio] = useState(props.profile.bio)
+    const [bio, setBio] = useState(null)
     // This is a cosmetic copy of our profile pics.
     // Do not change this directly - it is changed by the Media component
     // to display changes immediately, and is not persisted.
@@ -57,6 +58,13 @@ useEffect(() => {
     tryGetMedia();
   }
 }, [props.media, props.user._id, media]);
+
+useEffect(() => {
+  if (props.profile?.bio && bio === null){
+    setBio(props.profile.bio)
+  }
+
+}, [props.profile])
     
 
     useEffect(() => {
@@ -188,6 +196,11 @@ useEffect(() => {
         />
       )
     }
+
+    if (!props.profile)
+    {
+      return null
+    }
     
     // Show delete page if deleting
     if (delAccount)
@@ -240,7 +253,7 @@ useEffect(() => {
           provider = {curPlatform}
           updateProfile = {props.updateProfile}
           // Current username
-          username = {props.profile.socials[curPlatform] ? props.profile.socials[curPlatform] : ""}
+          username = {props.profile.socials ? (props.profile.socials[curPlatform] ? props.profile.socials[curPlatform] : "") : ""}
         />
 
           {/* Profile pic and name */}
@@ -257,13 +270,11 @@ useEffect(() => {
             <Text style = {{fontSize: 20, color: config.app.theme.creme}}>{props.profile.firstName} {props.subscriptionTier? `(${props.subscriptionTier})` : ""}</Text>
             {props.subscriptionTier !== "Elite" && (
             <Text>{props.tokens} tokens</Text>
-
             )}
-
           </View>
           
           {/* 3 page tabs (navbar): Profile, Filters, Settings */}
-          <View style = {{display: "flex", flexDirection: "row", justifyContent: "space-between", marginVertical: 20}}>
+          <View style={styles.navContainer}>
             <TouchableOpacity
                 style={{...styles.navButton, backgroundColor: curPage == 0 ? '#2f2e2e': '#e0e0e0'}}
                 onPress={() => handleNavPress(0)}
@@ -284,197 +295,229 @@ useEffect(() => {
               >
               <Text style={{...styles.navButtonText, color: curPage == 2 ? config.app.theme.creme : config.app.theme.gray}}>Settings</Text>
             </TouchableOpacity>
-
           </View>
 
-
-    {/* Profile view (bio, media, sport settings) */}
-          {curPage == 0 && 
-          (
-          <View style = {styles.spreadContainer}>
-            {/* Upper container */}
-            <View style = {{gap: 20}}>
-              
-              <View style={styles.iconContainer}>
-                <TouchableOpacity onPress={() => updateSocial("instagram")}>
-                  <Image style={styles.icon} source={require('../assets/social-icons/instagram.png')} />
-                </TouchableOpacity>
-                
-                <TouchableOpacity onPress={() => updateSocial("linkedin")}>
-                  <Image style={styles.icon} source={require('../assets/social-icons/linkedin.png')} />
-                </TouchableOpacity>
-                
-                <TouchableOpacity onPress={() => updateSocial("facebook")}>
-                  <Image style={styles.icon} source={require('../assets/social-icons/facebook.png')} />
-                </TouchableOpacity>
-                
-              </View>
-
-              <View>
-                  <Text style={styles.label}>Modify bio</Text>
-                  <TextInput
-                  style={[styles.input, styles.bioInput]}
-                  placeholder="Your bio"
-                  value={bio}
-                  onChangeText={(text) => setBio(text)}
-                  maxLength={300}
-                  multiline={false}
-                  returnKeyType="done"
-                  onEndEditing={() => { props.updateProfile("bio", bio)}}
-                  />
-              </View>
-
-              {/* Enhanced Premium Button */}
-              <View style={styles.premiumButtonContainer}>
-                <TouchableOpacity
-                  style={styles.premiumButton}
-                  onPress={() => props.setPaywall(true)}
-                >
-                  <View style={styles.premiumButtonContent}>
-                    <View style={styles.premiumIconContainer}>
-                      <Text style={styles.starIcon}>★</Text>
-                    </View>
-                    <View style={styles.premiumTextContainer}>
-                      <Text style={styles.premiumButtonText}>View Plans</Text>
-                      <Text style={styles.premiumButtonSubtext}>Get unlimited matches & more!</Text>
-                    </View>
-                    <View style={styles.arrowContainer}>
-                      <Text style={styles.arrowIcon}>→</Text>
-                    </View>
+          <ScrollView 
+            contentContainerStyle={styles.scrollViewContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Profile view (bio, media, sport settings) */}
+            {curPage == 0 && (
+              <View style={styles.pageContainer}>
+                {/* Upper container */}
+                <View style={styles.upperContainer}>
+                  <View style={styles.iconContainer}>
+                    <TouchableOpacity onPress={() => updateSocial("instagram")}>
+                      <Image style={styles.icon} source={require('../assets/social-icons/instagram.png')} />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity onPress={() => updateSocial("linkedin")}>
+                      <Image style={styles.icon} source={require('../assets/social-icons/linkedin.png')} />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity onPress={() => updateSocial("facebook")}>
+                      <Image style={styles.icon} source={require('../assets/social-icons/facebook.png')} />
+                    </TouchableOpacity>
                   </View>
-                </TouchableOpacity>
+
+                  <View style={styles.bioContainer}>
+                    <Text style={styles.label}>Modify bio</Text>
+                    <TextInput
+                      style={[styles.input, styles.bioInput]}
+                      placeholder="Your bio"
+                      value={bio}
+                      onChangeText={(text) => setBio(text)}
+                      maxLength={300}
+                      multiline={true}
+                      returnKeyType="done"
+                      onEndEditing={() => { props.updateProfile("bio", bio)}}
+                    />
+                  </View>
+
+                  {/* Enhanced Premium Button */}
+                  <View style={styles.premiumButtonContainer}>
+                    <TouchableOpacity
+                      style={styles.premiumButton}
+                      onPress={() => props.setPaywall(true)}
+                    >
+                      <View style={styles.premiumButtonContent}>
+                        <View style={styles.premiumIconContainer}>
+                          <Text style={styles.starIcon}>★</Text>
+                        </View>
+                        <View style={styles.premiumTextContainer}>
+                          <Text style={styles.premiumButtonText}>View Plans</Text>
+                          <Text style={styles.premiumButtonSubtext}>Get unlimited matches & more!</Text>
+                        </View>
+                        <View style={styles.arrowContainer}>
+                          <Text style={styles.arrowIcon}>→</Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.mediaContainer}>
+                  <Text style={styles.label}>Modify Images</Text>
+                  <Media media={media} onSubmitMedia={onSubmitMedia} onRemoveMedia={onRemoveMedia}></Media>
+                </View>
               </View>
+            )}
 
-              
-            </View>
-            
-
-              
-
-              <View style={styles.mediaContainer}>
-                <Text style={styles.label}>Modify Images</Text>
-                <Media media = {media} onSubmitMedia = {onSubmitMedia} onRemoveMedia = {onRemoveMedia}></Media>
-              </View>
-            </View>
-          )}
-
-          {/* Filter view (sport levels, age, etc) */}
-
-          {curPage == 1 &&
-          (
-            <View>
-
-
-              {/* Filter navbar */}
-              <View style = {{display: "flex", flexDirection: "row", justifyContent: "space-between"}}>
-                <TouchableOpacity
+            {/* Filter view (sport levels, age, etc) */}
+            {curPage == 1 && (
+              <View style={styles.pageContainer}>
+                {/* Filter navbar */}
+                <View style={styles.filterNavContainer}>
+                  <TouchableOpacity
                     style={{...styles.navButton, backgroundColor: curFilter == 0 ? '#2f2e2e': '#e0e0e0'}}
                     onPress={() => handleFilterNav(0)}
                   >
-                  <Text style={{...styles.navButtonText, color: curFilter == 0 ? config.app.theme.creme : config.app.theme.gray}}>Skills</Text>
-                </TouchableOpacity>
+                    <Text style={{...styles.navButtonText, color: curFilter == 0 ? config.app.theme.creme : config.app.theme.gray}}>Skills</Text>
+                  </TouchableOpacity>
 
-                <TouchableOpacity
+                  <TouchableOpacity
                     style={{...styles.navButton, backgroundColor: curFilter == 1 ? config.app.theme.black: config.app.theme.grey}}
                     onPress={() => handleFilterNav(1)}
                   >
-                  <Text style={{...styles.navButtonText, color: curFilter == 1 ? config.app.theme.creme : config.app.theme.gray}}>People</Text>
-                </TouchableOpacity>
-
-
-              </View>
-
-
-              {/* Demographics */}
-              { curFilter == 1 &&
-              (
-                <View>
-                  <Text style={styles.label}>Demographics</Text>
-                  <DemographicPicker radius = {props.filters.radius} updateFilter = {props.updateFilter} age = {props.filters.age} female = {props.filters.female} male = {props.filters.male}></DemographicPicker>
-
-
+                    <Text style={{...styles.navButtonText, color: curFilter == 1 ? config.app.theme.creme : config.app.theme.gray}}>People</Text>
+                  </TouchableOpacity>
                 </View>
-              )}
-              
-              {/* Skills for each sport */}
 
-              {curFilter == 0 && (
-                <View>
-                  <Text style={styles.label}>My Skill Levels</Text>
-
-                  {/* Render each skill component from the array of sports */}
-                  {props.filters.sports.map((sport, index) => (
-                    <SkillPicker updateFilter = {props.updateFilter} key={index} index = {index} sport = {sport} />
-                  ))}
-                </View>
-              )}
-              
-            </View>
-          )}
-
-
-          {/* Settings View */}
-          {curPage == 2 && 
-(
-<View style = {styles.spreadContainer}>
-  <View>
-    {props.subscriptionTier === "Premium" || props.subscriptionTier === "Elite" && (
-      <LocationSettings 
-      updateProfile={props.updateProfile} 
-      currentLocation={props.profile.location} 
-      setLocation={props.setLocation}
-    />
-    )}
-  </View>
-
-  {/* Bottom container */}
-  <View>
-    <View style={styles.buttonContainer}>
-      <TouchableOpacity
-        style={styles.buttonWithBorder}
-        onPress={handleUndoDislikes}
-      >
-        <Text style={styles.buttonText}>Undo Dislikes</Text>
-      </TouchableOpacity>
-    </View>
-
-    <View style={styles.buttonContainer}>
-      <TouchableOpacity
-        style={styles.buttonWithBorder}
-        onPress={handleLogout}
-      >
-        <Text style={styles.buttonText}>Logout</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.buttonWithBorder}
-        onPress={() => {setDelAccount(true)}}
-      >
-        <Text style={styles.buttonText}>Delete Account</Text>
-      </TouchableOpacity>
+                {/* Demographics */}
+                {curFilter == 1 && (
+                  <View style={styles.filterContentContainer}>
+                    <Text style={styles.label}>Demographics</Text>
+                    <DemographicPicker 
+                      radius={props.filters.radius} 
+                      updateFilter={props.updateFilter} 
+                      age={props.filters.age} 
+                      female={props.filters.female} 
+                      male={props.filters.male}
+                    />
+                  </View>
+                )}
+                
+                {/* Skills for each sport */}
+                {curFilter == 0 && (
+  <View style={styles.filterContentContainer}>
+    <Text style={styles.label}>My Skill Levels</Text>
+    <View style={styles.skillsListContainer}>
+      {props.filters.sports.map((sport, index) => (
+        <SkillPicker 
+          updateFilter={props.updateFilter} 
+          key={index} 
+          index={index} 
+          sport={sport} 
+        />
+      ))}
     </View>
   </View>
-</View>
 )}
-          
+              </View>
+            )}
 
-            
+            {/* Settings View */}
+            {curPage == 2 && (
+              <View style={styles.pageContainer}>
+                <View style={styles.settingsContainer}>
+                  {(props.subscriptionTier === "Premium" || props.subscriptionTier === "Elite") && (
+                    <LocationSettings 
+                      updateProfile={props.updateProfile} 
+                      currentLocation={props.profile.location} 
+                      setLocation={props.setLocation}
+                    />
+                  )}
+                </View>
 
-          
-        
+                {/* Bottom container */}
+                <View style={styles.bottomButtonsContainer}>
+                  <View style={styles.buttonContainer}>
+                    <TouchableOpacity
+                      style={styles.buttonWithBorder}
+                      onPress={handleUndoDislikes}
+                    >
+                      <Text style={styles.buttonText}>Undo Dislikes</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.buttonContainer}>
+                    <TouchableOpacity
+                      style={styles.buttonWithBorder}
+                      onPress={handleLogout}
+                    >
+                      <Text style={styles.buttonText}>Logout</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.buttonWithBorder}
+                      onPress={() => {setDelAccount(true)}}
+                    >
+                      <Text style={styles.buttonText}>Delete Account</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            )}
+          </ScrollView>
         </SafeAreaView>
-        
-        
       </TouchableWithoutFeedback>
     );
   }
 };
 
 const styles = StyleSheet.create({
+  skillsListContainer: {
+    flex: 1,
+    width: '100%',
+  },
+  container: {
+    flex: 1,
+    margin: 10,
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+  },
+  imagecontainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  navContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 15,
+  },
+  pageContainer: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  upperContainer: {
+    gap: 15,
+  },
+  bioContainer: {
+    marginBottom: 5,
+  },
+  filterNavContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  filterContentContainer: {
+    flex: 1,
+  },
+  settingsContainer: {
+    flex: 1,
+    marginBottom: 20,
+  },
+  bottomButtonsContainer: {
+    marginTop: 'auto',
+    paddingBottom: 10,
+  },
   iconContainer: {
     display: "flex",
     flexDirection: "row",
-    justifyContent: "space-evenly"
+    justifyContent: "space-evenly",
+    marginVertical: 5,
   },
   icon: { 
     width: "32%",
@@ -483,7 +526,8 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   mediaContainer: {
-    marginTop: 20,
+    marginTop: 15,
+    marginBottom: 20,
   },
   label: {
     fontSize: 18,
@@ -495,33 +539,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 10,
     padding: 10,
-    marginBottom: 20,
+    marginBottom: 10,
     backgroundColor: config.app.theme.creme
   },
   bioInput: {
     textAlignVertical: 'top',
-  },
-  imagecontainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  container: {
-    flex: 1,
-    margin: 10,
+    height: 75
   },
   spreadContainer: {
-    justifyContent: 'space-between', // Pushes content and buttons to the top and bottom, respectively
+    justifyContent: 'space-between',
     flex: 1,
   },
   logoText: {
     fontSize: Platform.OS === 'ios' && Platform.isPad ? 60 : 40,
     fontWeight: "100",
-    marginTop: Platform.OS === 'ios' && Platform.isPad ? 250 : 150 ,
+    marginTop: Platform.OS === 'ios' && Platform.isPad ? 250 : 150,
     marginBottom: 30,
     textAlign: "center",
   },
   errorText: {
-    fontSize: Platform.OS === 'ios' && Platform.isPad ? 24 : 18 ,
+    fontSize: Platform.OS === 'ios' && Platform.isPad ? 24 : 18,
     fontWeight: "200",
     marginTop: 20,
     marginBottom: 30,
@@ -572,20 +609,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    margin:3,
-  },
-  preferencesContainer: {
-    flex: 1, // Takes up available space in the container
+    margin: 3,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: Platform.OS === 'ios' && Platform.isPad ? 30 : 10
+    marginTop: Platform.OS === 'ios' && Platform.isPad ? 20 : 8
   },
   
-  // New styles for the premium button
+  // Premium button styles
   premiumButtonContainer: {
-    marginVertical: 15,
+    marginVertical: 10,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -596,7 +630,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   premiumButton: {
-    backgroundColor: "#1e1e1e", // Dark background for premium feel
+    backgroundColor: "#1e1e1e",
     padding: 16,
     borderRadius: 12,
     borderWidth: 1.5,
@@ -608,7 +642,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   premiumIconContainer: {
-    backgroundColor: "#FFD700", // Gold color for the star
+    backgroundColor: "#FFD700",
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -625,7 +659,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   premiumButtonText: {
-    color: "#FFD700", // Gold text for premium feel
+    color: "#FFD700",
     fontSize: 17,
     fontWeight: 'bold',
   },

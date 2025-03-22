@@ -27,15 +27,28 @@ const Matches = (props) => {
     );
   }
 
-  // Show loading state when matches aren't yet available
-  if (!props || !props.matches.some(match => props.media.get(match.uid))) {
-    return (
-      <View style={[styles.screen, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text style={{ marginTop: 20, fontSize: 16, color: '#666' }}>Loading your matches...</Text>
-      </View>
-    );
-  }
+
+
+if (props?.matches?.filter((match) => match.mutual).length === 0 ) {
+  return (
+     <View style={styles.screen}>
+                <Text style={{ fontSize: 25, fontWeight: '100', paddingBottom: 10 }}>My Matches</Text>
+      
+  <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No matches yet.</Text>
+              <Text style={styles.emptySubtext}>Get to swiping, & check back soon!</Text>
+            </View></View>)
+}
+ // Show loading state when matches aren't yet available
+else if (!props?.matches || (props.matches.filter((match) => match.mutual).length > 0 && !props.matches.some(match => (props.media.get(match.uid) && match.mutual)))) {
+  return (
+    <View style={[styles.screen, { justifyContent: 'center', alignItems: 'center' }]}>
+      <ActivityIndicator size="large" color="#FFFFF1" />
+      <Text style={{ marginTop: 20, fontSize: 16, color: 'black' }}>Loading your matches...</Text>
+    </View>
+  );
+}
+
 
   // Sort matches: unread first, then by timestamp in descending order
   const sortedMatches = props.matches

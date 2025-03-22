@@ -13,8 +13,8 @@ const filterSchema = new Schema({
   radius: { type: Number, required: true, default: 10 },
   sports: [{
     sportId: { type: Schema.Types.ObjectId, ref: 'Sport' }, // Reference to the sports collection
-    my_level: { type: Number, min: 0, max: 3, default: 0 },
-    match_level: [{ type: Number, enum: [1, 2, 3], default: [] }]
+    my_level: { type: Number, min: 0, max: 3, default: 1 },
+    match_level: [{ type: Number, enum: [1, 2, 3], default: [1, 2, 3] }]
   }]
 });
 

@@ -5,7 +5,7 @@ import config from '../app.json';
 
 const LocationSettings = ({ updateProfile, currentLocation, setLocation }) => {
   const [useCurrentLocation, setUseCurrentLocation] = useState(
-    currentLocation?.useCurrentLocation || false
+    currentLocation?.useCurrentLocation || true
   );
   const [searchQuery, setSearchQuery] = useState('');
   const [locationResults, setLocationResults] = useState([]);
@@ -49,7 +49,7 @@ const LocationSettings = ({ updateProfile, currentLocation, setLocation }) => {
           "Please allow location access to use this feature.",
           [{ text: "OK" }]
         );
-        setUseCurrentLocation(false);
+        setUseCurrentLocation(true);
         setIsLoading(false);
         return false;
       }
@@ -57,7 +57,7 @@ const LocationSettings = ({ updateProfile, currentLocation, setLocation }) => {
       return true;
     } catch (error) {
       console.error("Error requesting location permission:", error);
-      setUseCurrentLocation(false);
+      setUseCurrentLocation(true);
       setIsLoading(false);
       return false;
     }
@@ -213,8 +213,8 @@ const LocationSettings = ({ updateProfile, currentLocation, setLocation }) => {
         <Switch
           value={useCurrentLocation}
           onValueChange={toggleCurrentLocation}
-          trackColor={{ false: config.app.theme.grey, true: config.app.theme.red }}
-          thumbColor={useCurrentLocation ? config.app.theme.creme : '#f4f3f4'}
+          trackColor={{ false: config.app.theme.grey, true: config.app.theme.grey }}
+          thumbColor={useCurrentLocation ? config.app.theme.blue : config.app.theme.creme}
         />
       </View>
       

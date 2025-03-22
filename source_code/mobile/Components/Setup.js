@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { SafeAreaView, View, Text, TouchableOpacity, TextInput, StyleSheet, Image, Animated, Keyboard, Alert } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { SafeAreaView, View, Text, TouchableOpacity, TextInput, StyleSheet, Image, Animated, Keyboard, Alert, ScrollView, StatusBar } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 import Media from './Media';
 import config from "../app.json";
@@ -20,42 +20,80 @@ const Setup = (props) => {
   const [open, setOpen] = useState(false);
   const [birthdateChanged, setBirthdateChanged] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const [tutorialStep, setTutorialStep] = useState(0);
+  const tutorialData = [
+    {
+      title: "Welcome to the App!",
+      content: "Get ready to connect with others who share your interests.",
+      image: require('../assets/parakort-trans.png'),
+
+
+    },
+    {
+      title: "Create Your Profile",
+      content: "Add your socials, or update photos / bio. Remember to set your filters!",
+      image: require('../assets/parakort-trans.png'),
+
+    },
+    {
+      title: "Find Your Match",
+      content: "Swipe right on profiles you like, left on those you don't.",
+      image: require('../assets/parakort-trans.png'),
+    },
+    {
+      title: "Start Chatting",
+      content: "Once you match with someone, you can start a conversation!",
+      image: require('../assets/parakort-trans.png'),
+
+    }
+  ];
 
   const handleNext = () => {
-    
-    if (step == 1) // Last step
-    {
-        
-        makeProfile(userDetails)
+    if (step === 1) { // Last step of profile setup
+      makeProfile(userDetails);
+    } else if (step === 2 && tutorialStep < tutorialData.length - 1) {
+      // In tutorial mode, move to next tutorial step
+      setTutorialStep(prevStep => prevStep + 1);
+      return;
+    } else if (step === 2 && tutorialStep === tutorialData.length - 1) {
+      // Finished tutorial
+      play();
+      return;
     }
-
+    
     // Otherwise go to next step
     fadeOut(() => setStep((prev) => prev + 1));
   };
 
   // Switches UI to main app content
   const play = () => {
-    props.finishedSetup()
-  }
+    props.finishedSetup();
+  };
 
   // Saves user info in database and marks as complete
   const makeProfile = () => {
-    props.makeProfile(userDetails)
-
-  }
+    props.makeProfile(userDetails);
+  };
 
   const handleBack = () => {
     fadeOut(() => {
-        if (step < 2)
-        {
-            setStep((prev) => prev - 1)
+      if (step === 2) {
+        // In tutorial mode
+        if (tutorialStep > 0) {
+          // Go back to previous tutorial step
+          setTutorialStep(prevStep => prevStep - 1);
+          fadeIn();
+          return;
+        } else {
+          // Skip tutorial completely
+          play();
+          return;
         }
-        else
-        {
-            // skip tutorial
-            play()
-        }
-        
+      }
+      
+      if (step > 0) {
+        setStep((prev) => prev - 1);
+      }
     });
   };
 
@@ -83,8 +121,7 @@ const Setup = (props) => {
   };
 
   // We deleted media item from media component
-  function onRemoveMedia(index)
-  {
+  function onRemoveMedia(index) {
     setUserDetails((prevState) => ({
       ...prevState,
       media: [
@@ -95,9 +132,7 @@ const Setup = (props) => {
   }
 
   // We submitted media from the Media component
-  // For setup, we just update the media part of our user details (to be profile)
-  function onSubmitMedia(index, new_media)
-  {
+  function onSubmitMedia(index, new_media) {
     setUserDetails((prevState) => ({
       ...prevState,
       media: [
@@ -106,121 +141,145 @@ const Setup = (props) => {
         ...prevState.media.slice(index + 1)
       ],
     }));
-
   }
-
 
   const renderStepContent = () => {
     switch (step) {
       case 0:
         return (
-          <View style={{ display: "flex", flexDirection: "column", height: "70%", justifyContent: "space-between" }}>
-            <View>
-              <Text style={styles.label}>Enter your name:</Text>
-              <View style={styles.nameContainer}>
-                <TextInput
-                  style={[styles.input, styles.nameInput]}
-                  placeholder="First Name"
-                  value={userDetails.firstName}
-                  onChangeText={(text) => handleInputChange('firstName', text)}
-                />
-                <TextInput
-                  style={[styles.input, styles.nameInput]}
-                  placeholder="Last Name"
-                  value={userDetails.lastName}
-                  onChangeText={(text) => handleInputChange('lastName', text)}
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            <View style={styles.stepContainer}>
+              <View style={styles.formSection}>
+                <Text style={styles.sectionTitle}>Personal Information</Text>
+                <Text style={styles.label}>Enter your name:</Text>
+                <View style={styles.nameContainer}>
+                  <TextInput
+                    style={[styles.input, styles.nameInput]}
+                    placeholder="First Name"
+                    value={userDetails.firstName}
+                    onChangeText={(text) => handleInputChange('firstName', text)}
+                    placeholderTextColor="#aaa"
+                  />
+                  <TextInput
+                    style={[styles.input, styles.nameInput]}
+                    placeholder="Last Name"
+                    value={userDetails.lastName}
+                    onChangeText={(text) => handleInputChange('lastName', text)}
+                    placeholderTextColor="#aaa"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.formSection}>
+                <Text style={styles.label}>Enter your birthdate:</Text>
+                <TouchableOpacity
+                  onPress={() => {setOpen(true); Keyboard.dismiss()}}
+                  style={styles.input}
+                >
+                  <Text style={birthdateChanged ? styles.inputText : styles.placeholderText}>
+                    {birthdateChanged
+                      ? userDetails.birthdate.toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })
+                      : 'Enter Birthday'}
+                  </Text>
+                </TouchableOpacity>
+                <DatePicker
+                  modal
+                  open={open}
+                  date={userDetails.birthdate}
+                  mode="date"
+                  maximumDate={maxDate}
+                  onConfirm={(date) => {
+                    Keyboard.dismiss();
+                    setOpen(false);
+                    handleInputChange('birthdate', date);
+                    setBirthdateChanged(true);
+                  }}
+                  onCancel={() => { Keyboard.dismiss(); setOpen(false) }}
                 />
               </View>
-            </View>
 
-            <View>
-              <Text style={styles.label}>Enter your birthdate:</Text>
-              <TouchableOpacity
-                onPress={() => {setOpen(true); Keyboard.dismiss()}}
-                style={styles.input}
-              >
-                <Text>
-                  {birthdateChanged
-                    ? userDetails.birthdate.toLocaleDateString(undefined, {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })
-                    : 'Enter Birthday'}
-                </Text>
-              </TouchableOpacity>
-              <DatePicker
-                modal
-                open={open}
-                date={userDetails.birthdate}
-                mode="date"
-                maximumDate={maxDate}
-                onConfirm={(date) => {
-                  Keyboard.dismiss();
-                  setOpen(false);
-                  handleInputChange('birthdate', date);
-                  setBirthdateChanged(true);
-                }}
-                onCancel={() => { Keyboard.dismiss(); setOpen(false) }}
-              />
-            </View>
-
-            <View>
-              <Text style={styles.label}>Select your gender:</Text>
-              <View style={styles.genderContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.genderOption,
-                    userDetails.isMale === true && styles.selectedGender,
-                  ]}
-                  onPress={() => handleInputChange('isMale', true)}
-                >
-                  <Text style={styles.genderText}>Male</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.genderOption,
-                    userDetails.isMale === false && styles.selectedGender,
-                  ]}
-                  onPress={() => handleInputChange('isMale', false)}
-                >
-                  <Text style={styles.genderText}>Female</Text>
-                </TouchableOpacity>
+              <View style={styles.formSection}>
+                <Text style={styles.label}>Select your gender:</Text>
+                <View style={styles.genderContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.genderOption,
+                      userDetails.isMale === true && styles.selectedGender,
+                    ]}
+                    onPress={() => handleInputChange('isMale', true)}
+                  >
+                    <Text style={userDetails.isMale === true ? styles.selectedGenderText : styles.genderText}>Male</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.genderOption,
+                      userDetails.isMale === false && styles.selectedGender,
+                    ]}
+                    onPress={() => handleInputChange('isMale', false)}
+                  >
+                    <Text style={userDetails.isMale === false ? styles.selectedGenderText : styles.genderText}>Female</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
-          </View>
+          </ScrollView>
         );
       case 1:
         return (
-        <View style={{ display: "flex", flexDirection: "column", height: "95%", justifyContent: "space-between" }}>
-            <View>
-                <Text style={styles.label}>Tell us about yourself (300 characters max):</Text>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            <View style={styles.stepContainer}>
+              <View style={styles.formSection}>
+                <Text style={styles.sectionTitle}>About You</Text>
+                <Text style={styles.label}>Tell us about yourself:</Text>
                 <TextInput
-                style={[styles.input, styles.bioInput]}
-                placeholder="Your bio"
-                value={userDetails.bio}
-                onChangeText={(text) => handleInputChange('bio', text)}
-                maxLength={300}
-                multiline={false}
-                returnKeyType="done"
-                onSubmitEditing={Keyboard.dismiss}
+                  style={[styles.input, styles.bioInput]}
+                  placeholder="Your bio (300 characters max)"
+                  value={userDetails.bio}
+                  onChangeText={(text) => handleInputChange('bio', text)}
+                  maxLength={300}
+                  multiline={true}
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                  blurOnSubmit={true}
+                  placeholderTextColor="#aaa"
                 />
-            </View>
+                <Text style={styles.characterCount}>{userDetails.bio.length}/300</Text>
+              </View>
 
-            <View style={styles.mediaContainer}>
-              <Text style={styles.mediaPrompt}>Now let's see that pretty face!</Text>
-              <Media media = {userDetails.media} onSubmitMedia = {onSubmitMedia} onRemoveMedia = {onRemoveMedia}></Media>
+              <View style={styles.mediaSection}>
+                <Text style={styles.mediaPrompt}>Now let's see that pretty face!</Text>
+                <Media media={userDetails.media} onSubmitMedia={onSubmitMedia} onRemoveMedia={onRemoveMedia}></Media>
+              </View>
             </View>
-          </View>
+          </ScrollView>
         );
       case 2:
         return (
-          <View style={styles.finishedContainer}>
+          <View style={styles.tutorialContainer}>
             <Image
-              source={require('../assets/wave.gif')}
-              style={styles.finishedLogo}
+              source={tutorialData[tutorialStep].image}
+              style={styles.tutorialImage}
+              resizeMode="contain"
             />
-            <Text style={styles.finishedText}>{`Welcome, ${userDetails.firstName}!`}</Text>
+            <View style={styles.tutorialContent}>
+              <Text style={styles.tutorialTitle}>{tutorialData[tutorialStep].title}</Text>
+              <Text style={styles.tutorialText}>{tutorialData[tutorialStep].content}</Text>
+              <View style={styles.tutorialDots}>
+                {tutorialData.map((_, index) => (
+                  <View 
+                    key={index} 
+                    style={[
+                      styles.tutorialDot, 
+                      index === tutorialStep && styles.activeTutorialDot
+                    ]} 
+                  />
+                ))}
+              </View>
+            </View>
           </View>
         );
       default:
@@ -230,9 +289,10 @@ const Setup = (props) => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <View style={styles.header}>
         <Image
-          source={require('../assets/icon.png')}
+          source={require('../assets/parakort-trans.png')}
           style={styles.logo}
         />
         <Text style={styles.title}>{config.expo.name}</Text>
@@ -241,37 +301,43 @@ const Setup = (props) => {
         {renderStepContent()}
       </Animated.View>
       <View style={styles.buttonContainer}>
-        {step > 0 && (
+        {(step > 0 || (step === 2 && tutorialStep > 0)) && (
           <TouchableOpacity
             onPress={handleBack}
             style={[styles.backButton, { backgroundColor: config.app.theme.grey }]}
           >
-            <Text style={styles.buttonText}>{step < 2 ? 'Back' : 'Skip Tutorial'}</Text>
+            <Text style={styles.buttonText}>
+              {step < 2 ? 'Back' : (tutorialStep === 0 ? 'Skip Tutorial' : 'Back')}
+            </Text>
           </TouchableOpacity>
         )}
-        {(
-          <TouchableOpacity
-            onPress={handleNext}
-            style={[
-              styles.nextButton,
-              {
-                backgroundColor:
-                  (step === 0 && userDetails.firstName && userDetails.lastName && birthdateChanged && userDetails.isMale !== null) ||
-                  (step === 1 && userDetails.bio && userDetails.media.length > 0) ||
-                  (step === 2)
-                    ? config.app.theme.blue
-                    : config.app.theme.grey,
-              },
-            ]}
-            disabled={
-              step === 0
-                ? !(userDetails.firstName && userDetails.lastName && birthdateChanged && userDetails.isMale !== null)
-                : step === 1 && userDetails.media.length === 0
-            }
-          >
-            <Text style={styles.buttonText}>{step === 1 ? "Let's Play!" : (step === 2 ? 'Watch Tutorial' : 'Next')}</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          onPress={handleNext}
+          style={[
+            styles.nextButton,
+            {
+              backgroundColor:
+                (step === 0 && userDetails.firstName && userDetails.lastName && birthdateChanged && userDetails.isMale !== null) ||
+                (step === 1 && userDetails.bio && userDetails.media.length > 0) ||
+                (step === 2)
+                  ? config.app.theme.blue
+                  : config.app.theme.grey,
+            },
+          ]}
+          disabled={
+            step === 0
+              ? !(userDetails.firstName && userDetails.lastName && birthdateChanged && userDetails.isMale !== null)
+              : step === 1 && !(userDetails.bio && userDetails.media.length > 0)
+          }
+        >
+          <Text style={styles.buttonText}>
+            {step === 1 
+              ? "Let's Play!" 
+              : (step === 2 
+                ? (tutorialStep === tutorialData.length - 1 ? 'Finish' : 'Next') 
+                : 'Next')}
+          </Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -280,40 +346,71 @@ const Setup = (props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'space-between',
+    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 30
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   logo: {
-    width: 50,
-    height: 50,
+    width: 40,
+    height: 40,
     marginRight: 10,
   },
   title: {
-    fontSize: 29,
-    fontWeight: '100',
+    fontSize: 26,
+    fontWeight: '200',
     textAlign: 'center',
+    color: config.app.theme.blue,
   },
   contentContainer: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 30,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    padding: 20,
+  },
+  stepContainer: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  formSection: {
+    marginBottom: 25,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '300',
+    marginBottom: 15,
+    color: config.app.theme.blue,
   },
   label: {
-    fontSize: 18,
-    fontWeight: '100',
-    marginBottom: 10,
+    fontSize: 16,
+    fontWeight: '300',
+    marginBottom: 8,
+    color: '#333',
   },
   input: {
-    borderColor: config.app.theme.grey,
+    borderColor: '#e0e0e0',
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 20,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 15,
+    backgroundColor: '#fafafa',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  inputText: {
+    color: '#333',
+  },
+  placeholderText: {
+    color: '#aaa',
   },
   nameContainer: {
     flexDirection: 'row',
@@ -329,73 +426,133 @@ const styles = StyleSheet.create({
   genderOption: {
     flex: 1,
     alignItems: 'center',
-    padding: 10,
-    borderRadius: 10,
+    justifyContent: 'center',
+    padding: 15,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: config.app.theme.grey,
-    marginHorizontal: 10
+    borderColor: '#e0e0e0',
+    marginHorizontal: 6,
+    backgroundColor: '#fafafa',
   },
   selectedGender: {
-    backgroundColor: config.app.theme.creme,
+    backgroundColor: config.app.theme.blue,
+    borderColor: config.app.theme.blue,
   },
   genderText: {
-    fontSize: 18,
-    fontWeight: '100',
+    fontSize: 16,
+    fontWeight: '300',
+    color: '#333',
+  },
+  selectedGenderText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#fff',
   },
   bioInput: {
-    height: 200,
+    height: 120,
     textAlignVertical: 'top',
+    paddingTop: 12,
+  },
+  characterCount: {
+    alignSelf: 'flex-end',
+    color: '#888',
+    marginTop: -10,
+    marginBottom: 10,
+  },
+  mediaSection: {
+    marginTop: 10,
+  },
+  mediaPrompt: {
+    fontSize: 18,
+    marginBottom: 10,
+    fontWeight: '300',
+    color: '#333',
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingVertical: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    backgroundColor: '#fff',
   },
   nextButton: {
-    backgroundColor: '#808080',
+    backgroundColor: config.app.theme.blue,
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   backButton: {
-    backgroundColor: '#d3d3d3',
+    backgroundColor: config.app.theme.grey,
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
     flex: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   buttonText: {
     color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '600',
   },
-  mediaContainer: {
-    marginTop: 20,
-  },
-  mediaPrompt: {
-    fontSize: 18,
-    marginBottom: 10,
-    fontWeight: '100',
-  },
-  
-  finishedContainer: {
+  tutorialContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 30,
   },
-  finishedLogo: {
-    width: 150,
-    height: 150,
-    marginBottom: 10
+  tutorialImage: {
+    width: 180,
+    height: 180,
+    marginBottom: 30,
   },
-  finishedText: {
-    fontSize: 24,
-    color: config.app.theme.blue
+  tutorialContent: {
+    alignItems: 'center',
+  },
+  tutorialTitle: {
+    fontSize: 26,
+    fontWeight: '300',
+    marginBottom: 15,
+    color: config.app.theme.blue,
+    textAlign: 'center',
+  },
+  tutorialText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 30,
+    lineHeight: 24,
+    color: '#555',
+  },
+  tutorialDots: {
+    flexDirection: 'row',
+    marginTop: 20,
+  },
+  tutorialDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#e0e0e0',
+    marginHorizontal: 5,
+  },
+  activeTutorialDot: {
+    backgroundColor: config.app.theme.blue,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
 });
 
