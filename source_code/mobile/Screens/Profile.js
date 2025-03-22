@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Platform, View, Text, StyleSheet, TextInput, TouchableWithoutFeedback, Keyboard, Switch, TouchableOpacity, Alert, SafeAreaView, Image, Dimensions, KeyboardAvoidingView, ScrollView } from 'react-native';
+import { Platform, View, Text, StyleSheet, TextInput, TouchableWithoutFeedback, Keyboard, Switch, TouchableOpacity, Alert, SafeAreaView, Image, Dimensions, KeyboardAvoidingView, ScrollView, ActivityIndicator } from 'react-native';
 import config from '../app.json'
 import Media from '../Components/Media';
 import SkillPicker from '../Components/SkillPicker';
@@ -199,7 +199,20 @@ useEffect(() => {
 
     if (!props.profile)
     {
-      return null
+      return (
+        <SafeAreaView style={styles.loadingContainer}>
+          <View style={styles.loadingContent}>
+            <ActivityIndicator size="large" color={config.app.theme.blue} />
+            <Text style={styles.loadingText}>Hang tight! We're setting up your account...</Text>
+            <View style={styles.loadingAnimation}>
+              <Image 
+                source={require('../assets/parakort-trans.png')} 
+                style={styles.loadingImage}
+              />
+            </View>
+          </View>
+        </SafeAreaView>
+      );
     }
     
     // Show delete page if deleting
@@ -466,6 +479,40 @@ useEffect(() => {
 };
 
 const styles = StyleSheet.create({
+  // Loading screen styles
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#121212',
+    padding: 20,
+  },
+  loadingContent: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: config.app.theme.creme,
+    textAlign: 'center',
+    marginTop: 20,
+    marginBottom: 30,
+  },
+  loadingAnimation: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  loadingImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: config.app.theme.blue,
+  },
+  // Existing styles
   skillsListContainer: {
     flex: 1,
     width: '100%',

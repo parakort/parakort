@@ -99,7 +99,15 @@ const Likes = (props) => {
           </View>
           <View style={styles.benefitRow}>
             <Text style={styles.benefitIcon}>✓</Text>
-            <Text style={styles.benefitText}>Skip the waiting game</Text>
+            <Text style={styles.benefitText}>View nearby courts</Text>
+          </View>
+          <View style={styles.benefitRow}>
+            <Text style={styles.benefitIcon}>✓</Text>
+            <Text style={styles.benefitText}>More swipes per day</Text>
+          </View>
+          <View style={styles.benefitRow}>
+            <Text style={styles.benefitIcon}>✓</Text>
+            <Text style={styles.benefitText}>Remove ads</Text>
           </View>
         </View>
         
