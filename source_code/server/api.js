@@ -1101,12 +1101,13 @@ router.post('/suggestUser', async (req, res) => {
   const verboseLogs = false // Set to true to enable detailed logs
 
   try {
-    if (verboseLogs) {
-      console.log("Filters received:", JSON.stringify(filters, null, 2));
+    // if (verboseLogs) {
+      // console.log("Filters received:", JSON.stringify(filters, null, 2));
       console.log("Matches excluded:", matches);
       console.log("Dislikes excluded:", dislikes);
-      console.log("User location:", location);
-    }
+      console.log("Suggestions excluded:", suggestions)
+      // console.log("User location:", location);
+    // }
 
     // Build a query object based on filters
     const ageMinDate = new Date(new Date().setFullYear(new Date().getFullYear() - filters.age.max));
@@ -1117,45 +1118,49 @@ router.post('/suggestUser', async (req, res) => {
     const ageMaxDateStr = ageMaxDate.toISOString();
 
 
-    const query = {
-      _id: { $nin: [...matches, ...dislikes, ...suggestions, req.body.uid] }, // Exclude matches and dislikes
-       'profile.birthdate': { $gte: ageMinDateStr, $lte: ageMaxDateStr },
-      ...(filters.male || filters.female
-        ? { 'profile.isMale': filters.male && filters.female ? { $in: [true, false] } : filters.male ? true : { $ne: true } } // Match gender if specified
-        : {}),
-      location: {
-        $geoWithin: {
-          $centerSphere: [
-            [location.lat, location.lon], 
-            filters.radius / 3963.2 // Convert radius to radians (earth radius in miles)
-          ]
+    // Convert all IDs to ObjectId before using them in the query
+const query = {
+  _id: { 
+    $nin: [...matches, ...dislikes, ...suggestions, req.body.uid].map(id => {
+      // Try to convert to ObjectId, if it fails, use the original value
+      try {
+        return new ObjectId(id);
+      } catch (error) {
+        return id; // Keep as string if it can't be converted
+      }
+    })
+  },
+  'profile.birthdate': { $gte: ageMinDateStr, $lte: ageMaxDateStr },
+  ...(filters.male || filters.female
+    ? { 'profile.isMale': filters.male && filters.female ? { $in: [true, false] } : filters.male ? true : { $ne: true } }
+    : {}),
+  location: {
+    $geoWithin: {
+      $centerSphere: [
+        [location.lat, location.lon],
+        filters.radius / 3963.2 // Convert radius to radians (earth radius in miles)
+      ]
+    }
+  },
+  $or: filters.sports.map(sport => {
+    if (verboseLogs) {
+      console.log(`\nChecking sport: ${sport.sportId.name}`);
+      console.log(`- Sport ID: ${sport.sportId._id}`);
+      console.log(`- User's level: ${sport.my_level}`);
+      console.log(`- Match levels: ${sport.match_level.join(", ")}`);
+      console.log(`- Querying for sportId: ${sport.sportId._id} and levels: ${sport.match_level}`);
+    }
+    const objId = new ObjectId(sport.sportId._id);
+    return {
+      "filters.sports": {
+        $elemMatch: {
+          "sportId": objId, // Ensure we're matching the correct sportId
+          "my_level": { $in: sport.match_level } // Ensure my_level is in the match_level array
         }
-      },
-      
-      $or: filters.sports.map(sport => {
-        if (verboseLogs) {
-          console.log(`\nChecking sport: ${sport.sportId.name}`);
-          console.log(`- Sport ID: ${sport.sportId._id}`);
-          console.log(`- User's level: ${sport.my_level}`);
-          console.log(`- Match levels: ${sport.match_level.join(", ")}`);
-          console.log(`- Querying for sportId: ${sport.sportId._id} and levels: ${sport.match_level}`);
-        }
-      
-        const objId = new ObjectId(sport.sportId._id)
-      
-      
-        return {
-          "filters.sports": {
-            $elemMatch: {
-              "sportId": objId, // Ensure we're matching the correct sportId
-              "my_level": { $in: sport.match_level } // Ensure my_level is in the match_level array
-            }
-          }
-        };
-      }),
-      
+      }
     };
-
+  }),
+};
 
     if (verboseLogs) {
       console.log("Interpreted Query:");
@@ -1177,7 +1182,7 @@ router.post('/suggestUser', async (req, res) => {
 
     if (users.length > 0) {
       console.log("\nMatch Found:");
-      console.log(users[0].profile.firstName, users[0].profile.lastName);
+      console.log(users[0].profile.firstName, users[0].profile.lastName, users[0]._id);
 
       // Decrease the user's tokens by 1
       if (req.body.swiped)
