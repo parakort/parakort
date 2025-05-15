@@ -1,5 +1,5 @@
-// notificationHelpers.js
-const User = require('./models/User'); // adjust path as needed
+
+const User = require("./db/userModel");
 
 let users = {};
 
