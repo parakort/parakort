@@ -787,18 +787,6 @@ router.post('/matchUser', async (req, res) => {
   }
 });
 
-// Force a user to get new data, forcing them to call the below endpoint.
-function forceUpdate(uid, sender, messagePreview, senderName)
-{
-  // websocket will tell this uid, if they are online (app open),
-  // to perform a call to /getData
-  // Forward message to the recipient, if they are online
-  const recipientWs = users[uid];
-  if (recipientWs) {
-    recipientWs.send(JSON.stringify({type: 'update', sender: sender, messagePreview: messagePreview, senderName: senderName}));
-  }
-
-}
 
 // Poll to get new data
 // Websocket forces a user to pull new data when we make them aware that there's an update.
