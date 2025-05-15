@@ -1,28 +1,27 @@
-// Import the Express.js framework
 const express = require('express');
 require('dotenv').config();
-var cors = require('cors');
-var bodyParser = require('body-parser')
-var cookieParser = require('cookie-parser');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const cookieParser = require('cookie-parser');
+const http = require('http');
+const { setupWebSocket } = require('./ws');
 
+const app = express();
 
-// Create an instance of the Express application
-var api = require('./api');
-var app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
-
 app.use(express.json());
-app.use (express.urlencoded({extended: true}));
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-app.use('/', api);
+app.use('/', require('./api'));
 
+// 🔑 Create the HTTP server and bind both Express and WebSocket to it
+const server = http.createServer(app);
+setupWebSocket(server); // Call WS setup here
 
-
-// Start the server on port 3000
 const PORT = process.env.PORT || 3002;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`${process.env.APP_NAME} is running on port ${PORT}`);
 });

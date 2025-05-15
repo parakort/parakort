@@ -18,6 +18,8 @@
   const { Types: { ObjectId } } = mongoose;
   const OpenAI = require('openai');
 
+  const { forceUpdate, sendNotificationToUser } = require('./notificationHelpers');
+
   // Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.GPT_KEY,
@@ -312,41 +314,6 @@ router.delete('/push-token', async (req, res) => {
   }
 });
 
-// To send a push to a user
-
-/**
- * Sends a push notification to a specific user
- * @param {string} userId - The ID of the user to send the notification to
- * @param {string} title - The notification title
- * @param {string} body - The notification body content
- * @param {Object} [data={}] - Optional additional data to include with the notification
- * @returns {Promise<Object>} Result containing success status and data or error
- */
-async function sendNotificationToUser(userId, title, body, data = {}) {
-  try {
-    if (!title || !body) {
-      throw new Error('Title and body are required');
-    }
-    
-    const user = await User.findById(userId);
-    if (!user) {
-      throw new Error('User not found');
-    }
-    const result = await user.sendPushNotification(title, body, data);
-    return {
-      success: true,
-      message: 'Notification sent successfully',
-      data: result.data
-    };
-  } catch (error) {
-    console.error('Error sending notification:', error);
-    return {
-      success: false,
-      message: error.message,
-      error
-    };
-  }
-}
 
 // // Admin route to send notification to a specific user
 // router.post('/send-notification/:userId', async (req, res) => {
@@ -865,174 +832,174 @@ router.post('/getData', async (req, res) => {
 
 // Sockets for end to end comms
 
-const WebSocket = require('ws');
-const wss = new WebSocket.Server({ port: 8080 });
+// const WebSocket = require('ws');
+// const wss = new WebSocket.Server({ server, path: '/ws' });
 
 
-wss.on('connection', (ws) => {
-  ws.on('message', async (message) => {
-    const parsedMessage = JSON.parse(message);
+// wss.on('connection', (ws) => {
+//   ws.on('message', async (message) => {
+//     const parsedMessage = JSON.parse(message);
     
-    if (parsedMessage.type === 'register') {
-      users[parsedMessage.userId] = ws;
-      //console.log("Websocket connected", parsedMessage.userId);
-    } else if (parsedMessage.type === 'message') {
-      const recipientWs = users[parsedMessage.recipientId];
+//     if (parsedMessage.type === 'register') {
+//       users[parsedMessage.userId] = ws;
+//       //console.log("Websocket connected", parsedMessage.userId);
+//     } else if (parsedMessage.type === 'message') {
+//       const recipientWs = users[parsedMessage.recipientId];
       
-      // Create message object to send to recipient, preserving special message properties
-      const messageToSend = {
-        type: "message", 
-        message: parsedMessage.text, 
-        timestamp: parsedMessage.timestamp, 
-        sender: false
-      };
+//       // Create message object to send to recipient, preserving special message properties
+//       const messageToSend = {
+//         type: "message", 
+//         message: parsedMessage.text, 
+//         timestamp: parsedMessage.timestamp, 
+//         sender: false
+//       };
       
-      // Add special message properties if they exist
-      if (parsedMessage.isSpecial) {
-        messageToSend.isSpecial = true;
-        messageToSend.specialType = parsedMessage.specialType;
-      }
+//       // Add special message properties if they exist
+//       if (parsedMessage.isSpecial) {
+//         messageToSend.isSpecial = true;
+//         messageToSend.specialType = parsedMessage.specialType;
+//       }
       
-      // Send message to recipient if they're connected
-      if (recipientWs) {
-        recipientWs.send(JSON.stringify(messageToSend));
-      }
+//       // Send message to recipient if they're connected
+//       if (recipientWs) {
+//         recipientWs.send(JSON.stringify(messageToSend));
+//       }
       
-      // Send push notification to the recipient
-      const recipient = await User.findById(parsedMessage.recipientId);
-      if (recipient) {
-        // For special messages, create a more descriptive notification
-        let notificationBody;
+//       // Send push notification to the recipient
+//       const recipient = await User.findById(parsedMessage.recipientId);
+//       if (recipient) {
+//         // For special messages, create a more descriptive notification
+//         let notificationBody;
         
-        if (parsedMessage.isSpecial && parsedMessage.specialType === "venuesSummary") {
-          notificationBody = "Sent you places to play together!";
-        } else if (parsedMessage.isSpecial) {
-          // try {
-          //   const specialData = JSON.parse(parsedMessage.text);
-          //   notificationBody = specialData.message || "Sent you a special message";
-          // } catch (e) {
-          //   notificationBody = "Sent you a special message";
-          // }
-          return
-        } else {
-          notificationBody = `${parsedMessage.text.substring(0, 30)}`;
-        }
+//         if (parsedMessage.isSpecial && parsedMessage.specialType === "venuesSummary") {
+//           notificationBody = "Sent you places to play together!";
+//         } else if (parsedMessage.isSpecial) {
+//           // try {
+//           //   const specialData = JSON.parse(parsedMessage.text);
+//           //   notificationBody = specialData.message || "Sent you a special message";
+//           // } catch (e) {
+//           //   notificationBody = "Sent you a special message";
+//           // }
+//           return
+//         } else {
+//           notificationBody = `${parsedMessage.text.substring(0, 30)}`;
+//         }
         
-        const title = parsedMessage.senderName;
-        const data = { type: 'message', sender: parsedMessage.senderId };
+//         const title = parsedMessage.senderName;
+//         const data = { type: 'message', sender: parsedMessage.senderId };
         
-        sendNotificationToUser(parsedMessage.recipientId, title, notificationBody, data);
-      }
+//         sendNotificationToUser(parsedMessage.recipientId, title, notificationBody, data);
+//       }
       
-      // Forward the message and store it in each user's database document
-      let chatSender = await Chat.findOne({ user: parsedMessage.senderId });
-      if (!chatSender) {
-        chatSender = new Chat({ user: parsedMessage.senderId, chats: new Map() });
-      }
-      if (!chatSender.chats.has(parsedMessage.recipientId)) {
-        chatSender.chats.set(parsedMessage.recipientId, []);
-      }
+//       // Forward the message and store it in each user's database document
+//       let chatSender = await Chat.findOne({ user: parsedMessage.senderId });
+//       if (!chatSender) {
+//         chatSender = new Chat({ user: parsedMessage.senderId, chats: new Map() });
+//       }
+//       if (!chatSender.chats.has(parsedMessage.recipientId)) {
+//         chatSender.chats.set(parsedMessage.recipientId, []);
+//       }
       
-      // Create message object for sender's chat history
-      const senderMessageObj = {
-        message: parsedMessage.text,
-        sender: true,
-        timestamp: parsedMessage.timestamp,
-      };
+//       // Create message object for sender's chat history
+//       const senderMessageObj = {
+//         message: parsedMessage.text,
+//         sender: true,
+//         timestamp: parsedMessage.timestamp,
+//       };
       
-      // Add special message properties if they exist
-      if (parsedMessage.isSpecial) {
-        senderMessageObj.isSpecial = true;
-        senderMessageObj.specialType = parsedMessage.specialType;
-      }
+//       // Add special message properties if they exist
+//       if (parsedMessage.isSpecial) {
+//         senderMessageObj.isSpecial = true;
+//         senderMessageObj.specialType = parsedMessage.specialType;
+//       }
       
-      chatSender.chats.get(parsedMessage.recipientId).push(senderMessageObj);
-      await chatSender.save();
+//       chatSender.chats.get(parsedMessage.recipientId).push(senderMessageObj);
+//       await chatSender.save();
       
-      // Find or create a chat for the recipient
-      let chatRecipient = await Chat.findOne({ user: parsedMessage.recipientId });
-      if (!chatRecipient) {
-        chatRecipient = new Chat({ user: parsedMessage.recipientId, chats: new Map() });
-      }
-      if (!chatRecipient.chats.has(parsedMessage.senderId)) {
-        chatRecipient.chats.set(parsedMessage.senderId, []);
-      }
+//       // Find or create a chat for the recipient
+//       let chatRecipient = await Chat.findOne({ user: parsedMessage.recipientId });
+//       if (!chatRecipient) {
+//         chatRecipient = new Chat({ user: parsedMessage.recipientId, chats: new Map() });
+//       }
+//       if (!chatRecipient.chats.has(parsedMessage.senderId)) {
+//         chatRecipient.chats.set(parsedMessage.senderId, []);
+//       }
       
-      // Create message object for recipient's chat history
-      const recipientMessageObj = {
-        message: parsedMessage.text,
-        sender: false,
-        timestamp: parsedMessage.timestamp,
-      };
+//       // Create message object for recipient's chat history
+//       const recipientMessageObj = {
+//         message: parsedMessage.text,
+//         sender: false,
+//         timestamp: parsedMessage.timestamp,
+//       };
       
-      // Add special message properties if they exist
-      if (parsedMessage.isSpecial) {
-        recipientMessageObj.isSpecial = true;
-        recipientMessageObj.specialType = parsedMessage.specialType;
-      }
+//       // Add special message properties if they exist
+//       if (parsedMessage.isSpecial) {
+//         recipientMessageObj.isSpecial = true;
+//         recipientMessageObj.specialType = parsedMessage.specialType;
+//       }
       
-      chatRecipient.chats.get(parsedMessage.senderId).push(recipientMessageObj);
-      await chatRecipient.save();
+//       chatRecipient.chats.get(parsedMessage.senderId).push(recipientMessageObj);
+//       await chatRecipient.save();
       
-      // Update matches for both users for the last chat timestamp
-      await User.updateOne(
-        { _id: parsedMessage.recipientId },
-        {
-          $set: {
-            "matches.$[elem].timestamp": Date.now(),
-            "matches.$[elem].unread": true
-          }
-        },
-        {
-          arrayFilters: [{ "elem.uid": parsedMessage.senderId }],
-          new: true,
-        }
-      );
+//       // Update matches for both users for the last chat timestamp
+//       await User.updateOne(
+//         { _id: parsedMessage.recipientId },
+//         {
+//           $set: {
+//             "matches.$[elem].timestamp": Date.now(),
+//             "matches.$[elem].unread": true
+//           }
+//         },
+//         {
+//           arrayFilters: [{ "elem.uid": parsedMessage.senderId }],
+//           new: true,
+//         }
+//       );
       
-      await User.updateOne(
-        { _id: parsedMessage.senderId },
-        {
-          $set: {
-            "matches.$[elem].timestamp": Date.now()
-          }
-        },
-        {
-          arrayFilters: [{ "elem.uid": parsedMessage.recipientId }],
-          new: true,
-        }
-      );
+//       await User.updateOne(
+//         { _id: parsedMessage.senderId },
+//         {
+//           $set: {
+//             "matches.$[elem].timestamp": Date.now()
+//           }
+//         },
+//         {
+//           arrayFilters: [{ "elem.uid": parsedMessage.recipientId }],
+//           new: true,
+//         }
+//       );
       
-      // Create a more descriptive preview text for special messages
-      let previewText;
-      if (parsedMessage.isSpecial && parsedMessage.specialType === "venues") {
-        previewText = "Sent places to play together!";
-      } else if (parsedMessage.isSpecial) {
-        try {
-          const specialData = JSON.parse(parsedMessage.text);
-          previewText = specialData.message || "Sent a special message";
-        } catch (e) {
-          previewText = "Sent a special message";
-        }
-      } else {
-        previewText = parsedMessage.text.substring(0, 20);
-      }
+//       // Create a more descriptive preview text for special messages
+//       let previewText;
+//       if (parsedMessage.isSpecial && parsedMessage.specialType === "venues") {
+//         previewText = "Sent places to play together!";
+//       } else if (parsedMessage.isSpecial) {
+//         try {
+//           const specialData = JSON.parse(parsedMessage.text);
+//           previewText = specialData.message || "Sent a special message";
+//         } catch (e) {
+//           previewText = "Sent a special message";
+//         }
+//       } else {
+//         previewText = parsedMessage.text.substring(0, 20);
+//       }
       
-      // Force the recipient to refresh their match list
-      forceUpdate(parsedMessage.recipientId, parsedMessage.senderId, previewText, parsedMessage.senderName);
-    }
-  });
+//       // Force the recipient to refresh their match list
+//       forceUpdate(parsedMessage.recipientId, parsedMessage.senderId, previewText, parsedMessage.senderName);
+//     }
+//   });
   
   
 
-  ws.on('close', () => {
-    // Clean up user connections
-    for (const [userId, userWs] of Object.entries(users)) {
-      if (userWs === ws) {
-        delete users[userId];
-      }
-    }
-  });
-});
+//   ws.on('close', () => {
+//     // Clean up user connections
+//     for (const [userId, userWs] of Object.entries(users)) {
+//       if (userWs === ws) {
+//         delete users[userId];
+//       }
+//     }
+//   });
+// });
 
 router.get('/messages/:senderId/:recipientId', async (req, res) => {
   const { senderId, recipientId } = req.params;

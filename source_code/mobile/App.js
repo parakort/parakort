@@ -346,18 +346,24 @@ export default function App() {
   }, [user])
 
 
-  function connectWs()
-  {
-    ws.current = new WebSocket(`ws://${BASE_URL.substring(BASE_URL.indexOf("//") + 2, BASE_URL.indexOf(":", 5))}:8080`);
-
-      ws.current.onopen = () => {
-        console.log('WebSocket connected');
-        // Register this user with the WebSocket server
-        ws.current.send(
-          JSON.stringify({ type: 'register', userId: user._id })
-        );
-      };
+  function connectWs() {
+    let wsUrl;
+  
+    if (BASE_URL.includes('localhost')) {
+      wsUrl = `ws://localhost:3001/ws`;
+    } else {
+      wsUrl = BASE_URL.replace(/^http/, 'ws') + '/ws';
+    }
+  
+    ws.current = new WebSocket(wsUrl);
+  
+    ws.current.onopen = () => {
+      console.log('WebSocket connected');
+      ws.current.send(JSON.stringify({ type: 'register', userId: user._id }));
+    };
   }
+  
+  
 
   async function fetchData() {
 
@@ -779,21 +785,24 @@ const updateProfile = (key, newValue) => {
   
 
 
-
-// Function to save the file from Base64 string
-const saveFileFromBuffer = async (media) => {
-
-  const filePath = `${RNFS.DocumentDirectoryPath}/${user._id}/${media.name}`;
-  const buffer = media.data
-
-  try {
-    await RNFS.writeFile(filePath, buffer, 'base64'); // Directly use base64Data
-    return filePath
-  } catch (error) {
-    console.error('Error saving file:', error);
+// save file from buffer
+  const saveFileFromBuffer = async (media) => {
+    const userDir = `${RNFS.DocumentDirectoryPath}/${user._id}`;
+    const filePath = `${userDir}/${media.name}`;
+    const buffer = media.data;
   
-  }
-};
+    try {
+      const exists = await RNFS.exists(userDir);
+      if (!exists) {
+        await RNFS.mkdir(userDir); // Create directory if it doesn't exist
+      }
+  
+      await RNFS.writeFile(filePath, buffer, 'base64'); // Save the file
+      return filePath;
+    } catch (error) {
+      console.log('Error saving file:', error);
+    }
+  };
 
 // remove the lock on the suggest loop and try again
 function resumeSuggestLoop(clearSuggestions)
