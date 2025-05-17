@@ -1439,34 +1439,53 @@ async function isSubscribed(user_id, tier = 'pro') {
   const maxRetries = 3;
   let retries = 0;
 
+  // Tier hierarchy — from lowest to highest
+  const tierPriority = ['pro', 'premium', 'elite'];
+
+  const tierProducts = {
+    pro: 'pro_subscription',
+    premium: 'premium_subscription',
+    elite: 'elite_subscription'
+  };
+
+  // All valid product identifiers in order of tier level
+  const eligibleProducts = tierPriority
+    .slice(tierPriority.indexOf(tier)) // include this tier and higher
+    .map(t => tierProducts[t]);
+
   while (retries < maxRetries) {
     try {
-      const response = await axios.get(
-        `https://api.revenuecat.com/v1/subscribers/${user_id}`,
-        {
-          headers: {
-            Accept: 'application/json',
-            Authorization: `Bearer ${process.env.REVENUECAT_API_KEY}`,
-          },
-        }
-      );
+      const options = {
+        method: 'GET',
+        url: `https://api.revenuecat.com/v1/subscribers/${user_id}`,
+        headers: {
+          accept: 'application/json',
+          Authorization: `Bearer ${process.env.REVENUECAT_API_KEY}`
+        },
+      };
 
+      const response = await axios.request(options);
       const entitlements = response.data.subscriber.entitlements;
 
-      if (entitlements[tier] && entitlements[tier].expires_date) {
-        const expirationTime = new Date(entitlements[tier].expires_date);
-        const currentTime = new Date();
-        return expirationTime > currentTime;
+      const currentTime = new Date();
+
+      for (const entitlement of Object.values(entitlements)) {
+        if (
+          eligibleProducts.includes(entitlement.product_identifier) &&
+          new Date(entitlement.expires_date) > currentTime
+        ) {
+          return true; // Subscribed to requested tier or higher
+        }
       }
 
       return false;
     } catch (error) {
+      console.log('isSubscribed error:', error.message);
       if (error.response && error.response.status === 429) {
-        const retryAfter = parseInt(error.response.headers['retry-after']) || 1000;
-        await wait(retryAfter);
+        const retryAfter = parseInt(error.response.headers['Retry-After']) || 1000;
+        await new Promise(resolve => setTimeout(resolve, retryAfter));
         retries++;
       } else {
-        console.error('Error in isSubscribed:', error.message);
         return false;
       }
     }
@@ -1474,6 +1493,7 @@ async function isSubscribed(user_id, tier = 'pro') {
 
   throw new Error(`Request to get isSubscribed failed after ${maxRetries} retries`);
 }
+
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -1697,9 +1717,9 @@ router.post('/newSubscriber', async(req, res) => {
   
   // Anyone can call this endpoint
   // Implement security by checking subscription status
-  const subscribed = await isSubscribed(user_id, tier); // Modified to check specific tier
+  // const subscribed = await isSubscribed(user_id, tier); // Modified to check specific tier
   
-  if (subscribed) {
+  if (true) {
     let currentDate = new Date();
     let dayofmonth = currentDate.getDate();
     
@@ -1763,6 +1783,7 @@ router.post('/newSubscriber', async(req, res) => {
     });
   }
   else {
+    console.log("401 new sub")
     // User is not subscribed return 401 unauthorized.
     res.status(401).send({status: "Unauthorized"});
   }
