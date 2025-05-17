@@ -1436,71 +1436,48 @@ router.post('/updateField', async (req, res) => {
 
 
 async function isSubscribed(user_id, tier = 'pro') {
-  const maxRetries = 3; // Maximum number of retry attempts
+  const maxRetries = 3;
   let retries = 0;
-  
-  // Map tiers to their corresponding product identifiers
-  const tierProducts = {
-    'pro': 'pro_subscription',
-    'premium': 'premium_subscription',
-    'elite': 'elite_subscription'
-  };
-  
-  // Get the product identifier for the requested tier
-  const productIdentifier = tierProducts[tier] || tierProducts['pro'];
-  
+
   while (retries < maxRetries) {
     try {
-      const options = {
-        method: 'GET',
-        url: `https://api.revenuecat.com/v1/subscribers/${user_id}`,
-        headers: { accept: 'application/json', Authorization: `Bearer ${process.env.REVENUECAT_API_KEY}` },
-      };
-      
-      const response = await axios.request(options);
-      // The user
-      const subscriber = response.data.subscriber;
-      const entitlements = subscriber.entitlements;
-      
-      // Look at the user's entitlements to check for the specific tier
-      for (const value of Object.values(entitlements)) {
-        if (value['product_identifier'] === productIdentifier) {
-          // Check if it is active
-          const expirationTime = new Date(value.expires_date);
-          const currentTime = new Date();
-          return expirationTime > currentTime;
+      const response = await axios.get(
+        `https://api.revenuecat.com/v1/subscribers/${user_id}`,
+        {
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${process.env.REVENUECAT_API_KEY}`,
+          },
         }
+      );
+
+      const entitlements = response.data.subscriber.entitlements;
+
+      if (entitlements[tier] && entitlements[tier].expires_date) {
+        const expirationTime = new Date(entitlements[tier].expires_date);
+        const currentTime = new Date();
+        return expirationTime > currentTime;
       }
-      
-      // If no relevant entitlement was found, assume not subscribed
+
       return false;
     } catch (error) {
-      console.log(error)
       if (error.response && error.response.status === 429) {
-        const retryAfterHeader = error.response.headers['Retry-After'];
-        if (retryAfterHeader) {
-          const retryAfterMs = parseInt(retryAfterHeader);
-          console.log(`Too Many Requests. Retrying after ${retryAfterMs} milliseconds...`);
-          await wait(retryAfterMs);
-        } else {
-          console.log('Too Many Requests. No Retry-After header found.');
-        }
+        const retryAfter = parseInt(error.response.headers['retry-after']) || 1000;
+        await wait(retryAfter);
         retries++;
       } else {
-        // Handle other types of errors or non-retryable errors
+        console.error('Error in isSubscribed:', error.message);
         return false;
       }
     }
   }
-  
+
   throw new Error(`Request to get isSubscribed failed after ${maxRetries} retries`);
 }
-  
-  function wait(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
 
-  
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 
   // Ensure alive

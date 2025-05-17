@@ -1,6 +1,6 @@
 {
   "app": {
-    "server": "https://parakort.onrender.com", 
+    "server": "https://parakort.onrender.com",
     "welcome_msg": "Welcome! You have been granted some free tokens! Please view the Preferences tab to learn how to use the app.",
     "theme": {
       "red": "#F9063C",
@@ -14,7 +14,7 @@
   "expo": {
     "name": "Parakort",
     "slug": "Parakort",
-    "version": "4.0.0",
+    "version": "7.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -38,6 +38,12 @@
           "linkedin",
           "instagram",
           "fb",
+          "linkedin",
+          "instagram",
+          "fb",
+          "linkedin",
+          "instagram",
+          "fb",
           "linkedin"
         ],
         "ITSAppUsesNonExemptEncryption": false
@@ -50,6 +56,8 @@
       },
       "permissions": [
         "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION"
       ]
     },
@@ -58,6 +66,12 @@
       "eas": {
         "projectId": "249e383e-9398-4214-9e6d-4819315158da"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/249e383e-9398-4214-9e6d-4819315158da"
     }
   }
 }

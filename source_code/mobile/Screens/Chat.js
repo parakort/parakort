@@ -192,7 +192,7 @@ const Chat = (props) => {
 
   const findSportsVenues = async () => {
     // check if they are elite tier
-    if (props.me.profile.tier.toLowerCase() !== "elite" ) {  // || props.user.profile.tier === "elite"
+    if (props.me.profile.tier?.toLowerCase() !== "elite" ) {  // || props.user.profile.tier === "elite"
       Alert.alert(
         "Elite Tier Required",
         "You must be an Elite Tier user to use this feature. Upgrade to Elite to unlock this feature.",

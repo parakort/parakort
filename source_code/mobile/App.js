@@ -1458,7 +1458,7 @@ function logIn(token)
       const { location, error } = await getLocation();
       
       // if were not subscribed to a location-changing plan, or, if we choose to use current location, use current loc.
-      if ( !(res.data.user.subscription_tier === "elite" || res.data.user.subscription_tier === "premium") || res.data.user.profile.location.useCurrentLocation !== false)
+      if ( !(res.data.user.subscription_tier === "elite" || res.data.user.subscription_tier === "premium") || res.data.user.profile.location?.useCurrentLocation !== false)
       {
         
         if (error) {
@@ -1515,67 +1515,77 @@ function logIn(token)
   })
 }
 
-// Purchase subscription with tier system
 const purchase = async (tier) => {
   try {
-    // Define mapping between tiers and RevenueCat offerings package identifiers
     const tierPackages = {
-      'pro': 'Pro',
-      'premium': 'Premium',
-      'elite': 'Elite'
+      pro: 'Pro',
+      premium: 'Premium',
+      elite: 'Elite',
     };
-    
-    // Validate tier
-    if (!tierPackages[tier]) {
+
+    const productIdentifiers = {
+      pro: 'pro_subscription',
+      premium: 'premium_subscription',
+      elite: 'elite_subscription',
+    };
+
+    if (!tierPackages[tier] || !productIdentifiers[tier]) {
       throw new Error('Invalid subscription tier');
     }
-    
-    // Get all offerings
+
     const offerings = await Purchases.getOfferings();
-    
     if (!offerings.current) {
       throw new Error('No offerings available');
     }
-    
-    // Find the package that matches the requested tier
+
     const packageToPurchase = offerings.current.availablePackages.find(
-      pkg => pkg.identifier === tierPackages[tier]
+      (pkg) => pkg.identifier === tierPackages[tier]
     );
-    
+
     if (!packageToPurchase) {
       throw new Error(`No package found for ${tier} tier`);
     }
-    
+
+    // Check active subscription to set upgrade info
+    const currentCustomerInfo = await Purchases.getCustomerInfo();
+    const activeSubs = currentCustomerInfo.activeSubscriptions || [];
+    const currentProductIdentifier = activeSubs.length > 0 ? activeSubs[0] : null;
+
+    let purchaseResult;
+
     try {
-      // Make the purchase
-      const { customerInfo, productIdentifier } = await Purchases.purchasePackage(packageToPurchase);
-      // updateUserProfileTier(user._id, "Elite")
-      
-      // Check if the subscription is active for the purchased tier
-      if (typeof customerInfo.entitlements.active[tier] !== "undefined") {
-        // Successful purchase, grant tokens and update subscription status
+      if (currentProductIdentifier && currentProductIdentifier !== productIdentifiers[tier]) {
+        // Force upgrade
+        const upgradeInfo = {
+          oldSku: currentProductIdentifier,
+        };
+
+        purchaseResult = await Purchases.purchasePackage(packageToPurchase, upgradeInfo);
+      } else {
+        // No upgrade needed, just purchase
+        purchaseResult = await Purchases.purchasePackage(packageToPurchase);
+      }
+
+      const { customerInfo, productIdentifier } = purchaseResult;
+      const purchasedProducts = customerInfo.allPurchasedProductIdentifiers;
+
+      if (purchasedProducts.includes(productIdentifiers[tier])) {
         axios.post(`${BASE_URL}/newSubscriber`, {
           user_id: user._id,
-          tier: tier // Include the tier in the request
+          tier: tier,
         })
         .then((response) => {
-          // Update tokens locally
           setTokens(response.data.tokens);
-          
-          setSubscriptionTier(tier.charAt(0).toUpperCase() + tier.slice(1).toLowerCase()); // New state to track the subscription tier
-          console.log(`Subscribed to ${tier} tier!`);
-          updateUserProfileTier(user._id, tier.charAt(0).toUpperCase() + tier.slice(1).toLowerCase()) 
-          // downloadMediaFiles(user._id)
-          
-          // UI feedback here for subscription
+          const formattedTier = tier.charAt(0).toUpperCase() + tier.slice(1);
+          setSubscriptionTier(formattedTier);
+          updateUserProfileTier(user._id, formattedTier);
+          console.log(`Successfully subscribed to ${tier}`);
         })
         .catch((e) => {
-          // User was charged, but server made an error
-          // Issue refund / log the error
-          console.log('Backend error:', e);
+          console.log('Backend error after successful purchase:', e);
         });
       } else {
-        console.log("Subscription not active");
+        console.log('Purchase successful, but new tier not yet active (may still be processing)');
       }
     } catch (e) {
       if (!e.userCancelled) {
@@ -1583,11 +1593,11 @@ const purchase = async (tier) => {
       }
     }
   } catch (e) {
-    // User canceled, no wifi etc
     alert('Error Purchasing. You were not charged.');
     console.log('Setup error:', e);
   }
 };
+
 
 // Show paywall
 function showPaywall(tier)
